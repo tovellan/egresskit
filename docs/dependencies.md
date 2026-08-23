@@ -1,6 +1,6 @@
 # Dependency and license review
 
-Reviewed for version 0.4.0 on 2026-08-24.
+Reviewed for version 0.5.0 on 2026-08-24.
 
 The runtime has two direct dependencies:
 
@@ -10,6 +10,10 @@ The runtime has two direct dependencies:
 Both licenses are compatible with distribution of EgressKit under Apache License 2.0.
 Dependencies are installed separately and are not vendored or copied into release
 artifacts. No dependency notice requires an EgressKit `NOTICE` file.
+
+HTTPX 0.x is an optional BSD-3-Clause dependency for the `httpx` extra. Its transitive
+runtime dependencies are installed separately and are not bundled. The default EgressKit
+installation does not install HTTPX.
 
 Development and build dependencies are locked in `uv.lock`. They are not runtime
 dependencies and are not bundled. `pip-audit` checks the locked environment during the

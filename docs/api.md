@@ -48,6 +48,11 @@ The bound raw transport receives `send(destination: Destination, body: bytes)`. 
 has no HTTP client dependency. See [Destination binding](destinations.md) for the adapter
 boundary.
 
+Install the `httpx` extra and import `HTTPXDestinationTransport` or
+`HTTPXAsyncDestinationTransport` from `egresskit.httpx_transport` for the optional HTTPX
+implementation. These adapters are supported public APIs even though they are not
+imported from the package root. See [HTTPX integration](httpx.md).
+
 ## Declarative policy tests
 
 `load_policy_test_suite()` loads a strict versioned YAML or JSON suite.

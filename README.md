@@ -11,17 +11,22 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.4.0 adds deterministic decision explanations and CLI schemas alongside policy
-lint reports, exact provider destination bindings, declarative policy test suites, and
-rejection of resolver-ambiguous legacy IPv4 host spellings. Every serialized contract is
-versioned. Unknown versions, fields, providers, purposes, and unmatched requests fail
-closed.
+Version 0.5.0 adds optional sync and async HTTPX destination transports alongside
+deterministic explanations, policy lint reports, exact provider destination bindings,
+and declarative policy test suites. Every serialized contract is versioned. Unknown
+versions, fields, providers, purposes, and unmatched requests fail closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.4.0"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.5.0"
+```
+
+Install the optional HTTPX adapter with:
+
+```console
+python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.0"
 ```
 
 Python 3.10 through 3.14 are supported.
@@ -79,6 +84,8 @@ For a refused request, `BoundGuardedTransport` raises before the serializer is c
 It also refuses an allowed provider that has no exact destination binding. In dry-run
 mode it returns the decision without serializing or sending. See
 [Destination binding](docs/destinations.md) for DNS, redirect, and adapter guidance.
+Applications using HTTPX can use the optional sync or async transports described in
+[HTTPX integration](docs/httpx.md).
 
 ## Policy semantics
 
