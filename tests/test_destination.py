@@ -29,6 +29,9 @@ def test_destination_canonicalizes_urls() -> None:
         "https://processor.example.test:8443/"
     )
     assert Destination.from_url("https://[2001:0db8::1]/v1").url == "https://[2001:db8::1]/v1"
+    assert Destination.from_url("https://0xcafe.example.test/").url == (
+        "https://0xcafe.example.test/"
+    )
 
 
 @pytest.mark.parametrize(
@@ -51,6 +54,8 @@ def test_destination_canonicalizes_urls() -> None:
         "https://127.1/",
         "https://192.168.001.001/",
         "https://2130706433/",
+        "https://0x7f000001/",
+        "https://0x7f.0.0.1/",
     ],
 )
 def test_destination_rejects_ambiguous_or_unsafe_urls(url: str) -> None:
