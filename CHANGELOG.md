@@ -3,6 +3,11 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.5.1 - 2026-08-24
+
+- Add a safe legacy issue-template fallback so GitHub detects complete community health
+  metadata while preserving the structured issue forms.
+
 ## 0.5.0 - 2026-08-24
 
 - Add optional sync and async HTTPX destination transports.
