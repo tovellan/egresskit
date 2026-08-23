@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Usage questions
+    url: https://github.com/tovellan/egresskit/discussions
+    about: Ask integration and policy-authoring questions.
+  - name: Security report
+    url: https://github.com/tovellan/egresskit/security/advisories/new
+    about: Report vulnerabilities privately.

@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a focused change within EgressKit's security boundary.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Explain the concrete egress-control problem.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and compatibility effects
+      description: Describe fail-closed, receipt, schema, and bypass implications.
+    validations:
+      required: true

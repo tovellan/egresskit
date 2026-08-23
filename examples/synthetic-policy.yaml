@@ -1,0 +1,41 @@
+schema_version: "1"
+policy_id: synthetic_demo
+purposes:
+  - id: test_processing
+    description: Process records created solely for a test.
+providers:
+  - id: mock_processor
+    classifications:
+      - public
+      - internal
+    purposes:
+      - test_processing
+    environments:
+      - test
+    synthetic_only: true
+rules:
+  - id: allow_synthetic_test
+    effect: allow
+    classifications:
+      - public
+      - internal
+    purposes:
+      - test_processing
+    providers:
+      - mock_processor
+    environments:
+      - test
+    execution_modes:
+      - synthetic
+  - id: deny_restricted_test
+    effect: deny
+    classifications:
+      - restricted
+    purposes:
+      - test_processing
+    providers:
+      - mock_processor
+    environments:
+      - test
+    execution_modes:
+      - synthetic
