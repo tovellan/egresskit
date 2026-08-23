@@ -11,14 +11,14 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.1.0 is an initial public release. The policy schema is versioned as `"1"`.
+Version 0.1.0 is the initial tagged release. The policy schema is versioned as `"1"`.
 Unknown versions, fields, providers, purposes, and unmatched requests fail closed.
 
-The Python package is not published to a package index. Install from a release archive,
-a checked-out repository, or the public Git repository:
+The Python package is not published to a package index. Install it from an approved
+release archive or checked-out repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.1.0"
+python -m pip install .
 ```
 
 Python 3.10 through 3.14 are supported.
