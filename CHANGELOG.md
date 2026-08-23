@@ -3,6 +3,20 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.5.4 - 2026-08-24
+
+- Discard ordinary serializer exception chains so standard errors and tracebacks remain
+  payload-free after authorization while process-control exceptions still propagate.
+- Reject HTTPX defaults and hooks that can change an exact bound destination.
+- Accept every Python awaitable serializer form while rejecting non-byte results.
+- Make evaluator policy state read-only so rules, capabilities, and digests cannot drift.
+- Reject coercive security booleans, empty URL delimiters, and bracketed non-IPv6 hosts.
+- Version top-level intents, decisions, CLI argument errors, and structured errors.
+- Publish future releases from complete drafts and verify GitHub-native immutability and
+  exact asset digests.
+- Require a current independent approval in branch protection and the checked merge
+  preflight.
+
 ## 0.5.3 - 2026-08-24
 
 - Add a forward-only public commit identity audit anchored at the v0.5.1 baseline.

@@ -83,6 +83,17 @@ def test_non_utf8_policy_is_wrapped(tmp_path: Path) -> None:
     with pytest.raises(PolicyLoadError) as raised:
         load_policy(path)
     assert raised.value.code == "policy_invalid"
+
+
+def test_deep_json_policy_is_wrapped(tmp_path: Path) -> None:
+    path = tmp_path / "deep.json"
+    path.write_text(
+        '{"deep":' + "[" * 10_000 + "0" + "]" * 10_000 + "}",
+        encoding="utf-8",
+    )
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
     assert "\\xff" not in raised.value.message
 
 
@@ -188,7 +199,9 @@ def test_deny_overrides_allow() -> None:
     ],
 )
 def test_capability_failures(intent_overrides: dict[str, str], reason: ReasonCode) -> None:
-    decision = PolicyEvaluator(make_policy()).evaluate(intent(**intent_overrides))
+    decision = PolicyEvaluator(make_policy()).evaluate(
+        intent(**intent_overrides)  # type: ignore[arg-type]
+    )
     assert not decision.allowed
     assert reason in decision.reason_codes
 
@@ -236,6 +249,91 @@ def test_schema_is_versioned_and_forbids_extra_fields() -> None:
     schema = policy_json_schema()
     assert schema["properties"]["schema_version"]["const"] == "1"
     assert schema["additionalProperties"] is False
+
+
+def test_intent_and_decision_contracts_are_versioned() -> None:
+    request = intent()
+    decision = PolicyEvaluator(make_policy()).evaluate(request)
+    assert request.schema_version == "1"
+    assert decision.schema_version == "1"
+    assert request.model_dump(mode="json")["schema_version"] == "1"
+    assert decision.model_dump(mode="json")["schema_version"] == "1"
+
+
+@pytest.mark.parametrize("value", ["false", "off", 0, 1])
+def test_security_booleans_reject_coercion(value: object) -> None:
+    policy = policy_data()
+    policy["providers"][0]["synthetic_only"] = value
+    with pytest.raises(ValidationError):
+        Policy.model_validate(policy)
+
+    request = intent().model_dump(mode="python")
+    request["context"]["dry_run"] = value
+    with pytest.raises(ValidationError):
+        EgressIntent.model_validate(request)
+
+
+@pytest.mark.parametrize("token", ["no", "off", "yes", "on"])
+def test_policy_loader_rejects_legacy_yaml_boolean_tokens(tmp_path: Path, token: str) -> None:
+    raw = yaml.safe_dump(policy_data()).replace(
+        "synthetic_only: false", f"synthetic_only: {token}", 1
+    )
+    path = tmp_path / "policy.yaml"
+    path.write_text(raw, encoding="utf-8")
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
+
+
+@pytest.mark.parametrize(
+    "tagged_value",
+    [
+        "!!bool yes",
+        "!!bool no",
+        "!!bool on",
+        "!!bool off",
+        "!!bool protected-marker",
+        "!!int protected-marker",
+        "!!float protected-marker",
+        "!!timestamp protected-marker",
+    ],
+)
+def test_policy_loader_wraps_invalid_explicit_yaml_tags(
+    tmp_path: Path,
+    tagged_value: str,
+) -> None:
+    raw = yaml.safe_dump(policy_data()).replace(
+        "synthetic_only: false", f"synthetic_only: {tagged_value}", 1
+    )
+    path = tmp_path / "policy.yaml"
+    path.write_text(raw, encoding="utf-8")
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
+
+
+def test_policy_loader_accepts_explicit_true_and_false_booleans(tmp_path: Path) -> None:
+    raw = yaml.safe_dump(policy_data()).replace(
+        "synthetic_only: false", "synthetic_only: !!bool false", 1
+    )
+    raw = raw.replace("synthetic_only: true", "synthetic_only: !!bool true", 1)
+    path = tmp_path / "policy.yaml"
+    path.write_text(raw, encoding="utf-8")
+    policy = load_policy(path)
+    assert not policy.providers[0].synthetic_only
+    assert policy.providers[1].synthetic_only
+
+
+def test_evaluator_policy_is_read_only() -> None:
+    original = make_policy()
+    evaluator = PolicyEvaluator(original)
+    replacement_data = policy_data()
+    replacement_data["policy_id"] = "replacement_policy"
+    replacement = Policy.model_validate(replacement_data)
+    with pytest.raises(AttributeError):
+        evaluator.policy = replacement  # type: ignore[misc]
+    assert evaluator.policy is original
+    assert evaluator.evaluate(intent()).receipt.policy_digest == policy_digest(original)
 
 
 def test_typed_enum_construction() -> None:

@@ -11,8 +11,10 @@ bindings = DestinationBindings({"processor_a": "https://processor.example.test/v
 
 Matching is exact across the canonical host, port, and path. Destinations cannot contain
 credentials, a query, a fragment, percent encoding, repeated path separators, or dot
-segments. An unbound provider and a mismatched destination produce structured errors
-that contain only the provider identifier and a fixed reason code.
+segments. Empty query, fragment, and port delimiters are also rejected instead of being
+canonicalized away. Bracketed authorities must contain an IPv6 address. An unbound
+provider and a mismatched destination produce structured errors that contain only the
+provider identifier and a fixed reason code.
 
 ## Adapter contract
 

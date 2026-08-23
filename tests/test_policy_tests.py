@@ -96,6 +96,17 @@ def test_non_utf8_suite_is_wrapped(tmp_path: Path) -> None:
     with pytest.raises(SuiteLoadError) as raised:
         load_policy_test_suite(path)
     assert raised.value.code == "test_suite_invalid"
+
+
+def test_deep_json_suite_is_wrapped(tmp_path: Path) -> None:
+    path = tmp_path / "deep.json"
+    path.write_text(
+        '{"deep":' + "[" * 10_000 + "0" + "]" * 10_000 + "}",
+        encoding="utf-8",
+    )
+    with pytest.raises(SuiteLoadError) as raised:
+        load_policy_test_suite(path)
+    assert raised.value.code == "test_suite_invalid"
     assert "\\xff" not in raised.value.message
 
 

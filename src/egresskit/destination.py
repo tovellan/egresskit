@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from .errors import DestinationRefused, EgressRefused, SerializationFailed
 from .models import IDENTIFIER_PATTERN, Decision, EgressIntent
 from .policy import PolicyEvaluator
-from .transport import DispatchResult
+from .transport import DispatchResult, _serialize_payload, _serialize_payload_async
 
 PayloadT = TypeVar("PayloadT")
 ResponseT = TypeVar("ResponseT", covariant=True)
@@ -65,10 +65,18 @@ class Destination:
             raise ValueError("destination scheme must be https")
         if parsed.username is not None or parsed.password is not None:
             raise ValueError("destination must not contain user information")
-        if parsed.query or parsed.fragment:
+        if "?" in value or "#" in value:
             raise ValueError("destination must not contain a query or fragment")
         if parsed.hostname is None:
             raise ValueError("destination host is required")
+        authority = parsed.netloc.rsplit("@", 1)[-1]
+        if authority.endswith(":"):
+            raise ValueError("destination port is invalid")
+        if authority.startswith("["):
+            try:
+                ipaddress.IPv6Address(parsed.hostname)
+            except ValueError:
+                raise ValueError("destination host is invalid") from None
         host = cls._canonical_host(parsed.hostname)
         path = parsed.path or "/"
         cls._validate_path(path)
@@ -177,10 +185,10 @@ class BoundGuardedTransport(Generic[ResponseT]):
             return DispatchResult(decision=decision, serialized=False, sent=False, response=None)
         if destination is None:
             raise EgressRefused(decision)
-        try:
-            body = serializer(payload)
-        except Exception as exc:
-            raise SerializationFailed(cause=exc) from exc
+        serialized, body = _serialize_payload(payload, serializer)
+        if not serialized or body is None:
+            del payload, serializer
+            raise SerializationFailed() from None
         response = self._transport.send(destination, body)
         return DispatchResult(decision=decision, serialized=True, sent=True, response=response)
 
@@ -217,11 +225,10 @@ class BoundGuardedAsyncTransport(Generic[ResponseT]):
             return DispatchResult(decision=decision, serialized=False, sent=False, response=None)
         if destination is None:
             raise EgressRefused(decision)
-        try:
-            serialized = serializer(payload)
-            body = await serialized if hasattr(serialized, "__await__") else serialized
-        except Exception as exc:
-            raise SerializationFailed(cause=exc) from exc
+        serialized, body = await _serialize_payload_async(payload, serializer)
+        if not serialized or body is None:
+            del payload, serializer
+            raise SerializationFailed() from None
         response = await self._transport.send(destination, body)
         return DispatchResult(decision=decision, serialized=True, sent=True, response=response)
 

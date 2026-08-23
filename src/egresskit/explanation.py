@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, StrictBool
 
 from .models import (
     DataClassification,
@@ -29,7 +29,7 @@ class DecisionExplanation(ImmutableModel):
     purpose: Identifier
     environment: Identifier
     execution_mode: ExecutionMode
-    dry_run: bool
+    dry_run: StrictBool
 
 
 def explain_decision(decision: Decision) -> DecisionExplanation:

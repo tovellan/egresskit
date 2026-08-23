@@ -23,7 +23,9 @@ The four classifications are `public`, `internal`, `confidential`, and `restrict
 They are labels, not an ordered hierarchy. A provider must list each accepted label.
 
 Execution mode is `live` or `synthetic`. Set `synthetic_only: true` on providers that
-must never receive live application data. This check is independent of rules.
+must never receive live application data. This check is independent of rules. Boolean
+fields accept actual JSON booleans and YAML `true` or `false`; strings, numbers, and
+legacy YAML tokens such as `yes`, `no`, `on`, and `off` are invalid.
 
 See `examples/synthetic-policy.yaml` for the complete format. Use `egresskit validate`
 in CI before deploying a policy.

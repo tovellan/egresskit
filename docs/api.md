@@ -21,14 +21,23 @@ decision = evaluator.evaluate(
 ```
 
 `evaluate` never raises for a well-formed intent. Unknown declarations return a denial.
-Policy and model validation errors occur before evaluation.
+Policy and model validation errors occur before evaluation. The evaluator exposes its
+immutable policy through a read-only property so cached capabilities, rules, and the
+receipt digest cannot drift apart.
 
 ## Enforce dispatch
 
 `GuardedTransport.dispatch(intent, payload, serializer)` returns `DispatchResult`. A
 normal denial raises `EgressRefused`; its `to_dict()` method returns a machine-readable,
-payload-free error. Serializer failures raise `SerializationFailed`. Exceptions from the
-raw transport pass through unchanged.
+versioned, payload-free error. Ordinary serializer exceptions raise `SerializationFailed`
+without retaining the serializer exception as a cause or context. Its message,
+structured form, and standard formatted traceback omit runtime payload data. Process
+control exceptions such as cancellation and `SystemExit` propagate unchanged, as do
+exceptions from the raw transport.
+
+Python observability tools that capture caller source lines or frame locals can still
+capture application payloads. Configure tracing and crash reporting to redact those
+values. EgressKit sanitizes its own serialization failure, not the caller's process.
 
 Dry-run dispatch always returns after evaluation with `serialized=False`, `sent=False`,
 and `response=None`. Inspect `result.decision.allowed` for the hypothetical outcome.

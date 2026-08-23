@@ -22,7 +22,10 @@ unless its declared metadata is explicitly allowed by a valid local policy.
 - Refusals occur before serializer side effects.
 - Dry runs never serialize or send.
 - Decision receipts and EgressKit errors cannot accept protected payload fields.
+- Ordinary serialization failures discard serializer exceptions, causal chains, and
+  payload data from standard formatted tracebacks.
 - Strict schema validation rejects unknown policy fields and unsupported versions.
+- Security-sensitive boolean fields reject string and numeric coercion.
 - Unknown provider destination bindings fail before serialization.
 - Canonical HTTPS destination bindings reject credentials, queries, fragments, encoded
   paths, dot segments, and noncanonical hosts.
@@ -39,6 +42,10 @@ unless its declared metadata is explicitly allowed by a valid local policy.
 - Redirect enforcement inside an HTTP client unless its adapter disables redirects or
   validates every redirect target against the original binding.
 - Protecting a compromised process, dependency, policy author, or transport adapter.
+- Preventing observability tools from capturing payloads in caller source lines, frame
+  locals, raw transport exceptions, or application-managed logs.
+- Sanitizing process-control exceptions such as cancellation, `KeyboardInterrupt`, or
+  `SystemExit`; guarded transports propagate them unchanged.
 - Proving consent, legality, residency, or compliance.
 - Encrypting or signing receipts.
 - Preventing metadata disclosure from receipt storage.

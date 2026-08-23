@@ -11,24 +11,23 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.5.3 adds enforced, forward-only privacy controls for public commit metadata.
-It also rejects duplicate keys in policy and declarative test-suite documents and
-includes optional sync and async HTTPX destination transports, deterministic
-explanations, policy lint reports, exact provider destination bindings, and declarative
-policy test suites. Every serialized contract is versioned. Unknown versions, fields,
+Version 0.5.4 closes destination, serialization-error, and policy-state fail-open paths.
+It requires exact HTTPX request targets, rejects coercive security booleans and ambiguous
+destination spellings, and discards serializer exceptions that could retain payloads.
+Every top-level EgressKit serialized contract is versioned. Unknown versions, fields,
 providers, purposes, and unmatched requests fail closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.5.3"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.5.4"
 ```
 
 Install the optional HTTPX adapter with:
 
 ```console
-python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.3"
+python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.4"
 ```
 
 Python 3.10 through 3.14 are supported.
@@ -136,7 +135,7 @@ make ci
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
 [public commit identity boundary](docs/public-history.md),
-[protected releases](docs/releases.md), and [support policy](docs/support.md).
+[release integrity](docs/releases.md), and [support policy](docs/support.md).
 
 ## License
 

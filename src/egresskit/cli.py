@@ -7,7 +7,7 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, NoReturn, TextIO
 
 from pydantic import ValidationError
 
@@ -29,16 +29,26 @@ EXIT_TEST_FAILURE = 4
 EXIT_LINT_FAILURE = 5
 
 
+class _ArgumentParseError(Exception):
+    pass
+
+
+class _JSONArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        del message
+        raise _ArgumentParseError
+
+
 def _emit(value: Any, *, stream: TextIO | None = None) -> None:
     print(json.dumps(value, indent=2, sort_keys=True), file=stream or sys.stdout)
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _JSONArgumentParser(
         prog="egresskit",
         description="Validate and evaluate fail-closed data egress policies.",
     )
-    parser.add_argument("--version", action="version", version="egresskit 0.5.3")
+    parser.add_argument("--version", action="version", version="egresskit 0.5.4")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate = subparsers.add_parser("validate", help="validate a versioned policy file")
@@ -87,8 +97,8 @@ def _add_intent_arguments(command: argparse.ArgumentParser) -> None:
 
 
 def run(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
     try:
+        args = _parser().parse_args(argv)
         if args.command == "validate":
             policy = load_policy(args.policy)
             _emit(
@@ -142,12 +152,30 @@ def run(argv: Sequence[str] | None = None) -> int:
             output = explain_decision(decision) if args.command == "explain" else decision
             _emit(output.model_dump(mode="json"))
             return 0 if decision.allowed else EXIT_DENIED
+    except _ArgumentParseError:
+        _emit(
+            {
+                "schema_version": "1",
+                "error": {
+                    "code": "request_invalid",
+                    "message": "command arguments are invalid",
+                },
+            },
+            stream=sys.stderr,
+        )
+        return EXIT_INVALID
     except EgressKitError as exc:
         _emit(exc.to_dict(), stream=sys.stderr)
         return EXIT_INVALID
     except ValidationError:
         _emit(
-            {"error": {"code": "request_invalid", "message": "request metadata is invalid"}},
+            {
+                "schema_version": "1",
+                "error": {
+                    "code": "request_invalid",
+                    "message": "request metadata is invalid",
+                },
+            },
             stream=sys.stderr,
         )
         return EXIT_INVALID

@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
 IDENTIFIER_PATTERN = r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
 Identifier = Annotated[str, Field(pattern=IDENTIFIER_PATTERN, max_length=128)]
@@ -66,7 +66,7 @@ class ProviderCapability(ImmutableModel):
     classifications: frozenset[DataClassification] = Field(min_length=1)
     purposes: frozenset[Identifier] = Field(min_length=1)
     environments: frozenset[Identifier] = Field(min_length=1)
-    synthetic_only: bool = False
+    synthetic_only: StrictBool = False
 
 
 class PolicyRule(ImmutableModel):
@@ -118,12 +118,13 @@ class Policy(ImmutableModel):
 class ExecutionContext(ImmutableModel):
     environment: Identifier
     mode: ExecutionMode = ExecutionMode.LIVE
-    dry_run: bool = False
+    dry_run: StrictBool = False
 
 
 class EgressIntent(ImmutableModel):
     """Payload-free metadata supplied to policy evaluation."""
 
+    schema_version: Literal["1"] = "1"
     classification: DataClassification
     purpose: Identifier
     provider: Identifier
@@ -145,11 +146,12 @@ class DecisionReceipt(ImmutableModel):
     purpose: Identifier
     environment: Identifier
     execution_mode: ExecutionMode
-    dry_run: bool
+    dry_run: StrictBool
     matched_rule_ids: tuple[Identifier, ...]
 
 
 class Decision(ImmutableModel):
+    schema_version: Literal["1"] = "1"
     status: DecisionStatus
     reason_codes: tuple[ReasonCode, ...]
     matched_rule_ids: tuple[Identifier, ...]

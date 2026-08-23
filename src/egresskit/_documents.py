@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Hashable
 from typing import Any, NoReturn
 
 import yaml
 from yaml.constructor import ConstructorError
-from yaml.nodes import MappingNode, Node, SequenceNode
+from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.resolver import BaseResolver
 
 
@@ -20,6 +21,33 @@ class _UniqueKeySafeLoader(yaml.SafeLoader):
     def construct_document(self, node: Node) -> Any:
         _validate_unique_mapping_graph(self, node)
         return super().construct_document(node)
+
+
+_YAML_BOOL_TAG = "tag:yaml.org,2002:bool"
+_UniqueKeySafeLoader.yaml_implicit_resolvers = {
+    key: [resolver for resolver in resolvers if resolver[0] != _YAML_BOOL_TAG]
+    for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+_UniqueKeySafeLoader.add_implicit_resolver(
+    _YAML_BOOL_TAG,
+    re.compile(r"^(?:true|false)$", re.IGNORECASE),
+    list("tTfF"),
+)
+
+
+def _construct_strict_bool(loader: _UniqueKeySafeLoader, node: ScalarNode) -> bool:
+    value = loader.construct_scalar(node).lower()
+    if value not in {"true", "false"}:
+        raise ConstructorError(
+            "while constructing a boolean",
+            node.start_mark,
+            "expected true or false",
+            node.start_mark,
+        )
+    return value == "true"
+
+
+_UniqueKeySafeLoader.add_constructor(_YAML_BOOL_TAG, _construct_strict_bool)
 
 
 _YAML_MERGE_KEY = object()
@@ -144,13 +172,18 @@ def parse_document(raw: str, *, is_json: bool) -> Any:
                 object_pairs_hook=_unique_json_object,
                 parse_constant=_reject_json_constant,
             )
-        except DocumentParseError:
+        except (MemoryError, DocumentParseError):
             raise
-        except ValueError as exc:
-            raise DocumentParseError("JSON document is invalid") from exc
+        except Exception:
+            raise DocumentParseError("JSON document is invalid") from None
 
     loader = _UniqueKeySafeLoader(raw)
     try:
-        return loader.get_single_data()
+        try:
+            return loader.get_single_data()
+        except (MemoryError, yaml.YAMLError):
+            raise
+        except Exception:
+            raise DocumentParseError("YAML document is invalid") from None
     finally:
         loader.dispose()

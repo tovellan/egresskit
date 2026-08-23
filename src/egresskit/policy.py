@@ -77,10 +77,14 @@ class PolicyEvaluator:
     """Evaluate capability limits first, then deny-overrides policy rules."""
 
     def __init__(self, policy: Policy) -> None:
-        self.policy = policy
+        self._policy = policy
         self._purposes = frozenset(purpose.id for purpose in policy.purposes)
         self._providers = {provider.id: provider for provider in policy.providers}
         self._digest = policy_digest(policy)
+
+    @property
+    def policy(self) -> Policy:
+        return self._policy
 
     def evaluate(self, intent: EgressIntent) -> Decision:
         reasons: set[ReasonCode] = set()
@@ -94,7 +98,7 @@ class PolicyEvaluator:
             reasons.update(self._capability_failures(provider, intent))
 
         if not reasons:
-            matched = tuple(rule for rule in self.policy.rules if self._matches(rule, intent))
+            matched = tuple(rule for rule in self._policy.rules if self._matches(rule, intent))
             denied = tuple(rule for rule in matched if rule.effect is RuleEffect.DENY)
             allowed = tuple(rule for rule in matched if rule.effect is RuleEffect.ALLOW)
             if denied:
@@ -112,7 +116,7 @@ class PolicyEvaluator:
         receipt = DecisionReceipt(
             receipt_id=str(uuid4()),
             evaluated_at=datetime.now(timezone.utc),
-            policy_id=self.policy.policy_id,
+            policy_id=self._policy.policy_id,
             policy_digest=self._digest,
             status=status,
             reason_codes=reason_codes,

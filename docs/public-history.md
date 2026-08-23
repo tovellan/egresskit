@@ -4,6 +4,13 @@ Public Git history is permanent project metadata. EgressKit applies a forward-on
 identity boundary after the frozen v0.5.1 commit
 `969789f845ee5df38f5e518220e5e72e029803a7`.
 
+Reachable commits at or before that boundary still contain historical identity fields
+and attribution trailers that do not meet the current rule. Closed pull-request metadata
+also preserves historical head branch names after live branches are deleted. Removing
+that exposure would require an explicitly authorized rewrite of commits, tags, releases,
+and hosting metadata. No such rewrite has been authorized or performed, so this control
+does not claim zero historical identity exposure.
+
 Maintainer-authored commits use exactly:
 
 ```text

@@ -14,7 +14,10 @@ class EgressKitError(Exception):
         self.message = message
 
     def to_dict(self) -> dict[str, Any]:
-        return {"error": {"code": self.code, "message": self.message}}
+        return {
+            "schema_version": "1",
+            "error": {"code": self.code, "message": self.message},
+        }
 
 
 class PolicyLoadError(EgressKitError):
@@ -35,9 +38,9 @@ class EgressRefused(EgressKitError):
 
 
 class SerializationFailed(EgressKitError):
-    def __init__(self, *, cause: Exception) -> None:
+    def __init__(self, *, cause: Exception | None = None) -> None:
+        del cause
         super().__init__("serialization_failed", "payload serialization failed after authorization")
-        self.__cause__ = cause
 
 
 class DestinationRefused(EgressKitError):

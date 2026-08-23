@@ -5,6 +5,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
+from pydantic import StrictBool
+
 from .models import (
     ExecutionMode,
     Identifier,
@@ -31,7 +33,7 @@ class PolicyLintDiagnostic(ImmutableModel):
 class PolicyLintReport(ImmutableModel):
     schema_version: Literal["1"] = "1"
     policy_id: Identifier
-    passed: bool
+    passed: StrictBool
     diagnostic_count: int
     diagnostics: tuple[PolicyLintDiagnostic, ...]
 

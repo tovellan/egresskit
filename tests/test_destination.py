@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import traceback
+import types
 
 import pytest
 from hypothesis import given
@@ -14,6 +16,7 @@ from egresskit import (
     DestinationBindings,
     DestinationRefused,
     PolicyEvaluator,
+    SerializationFailed,
 )
 from egresskit.testing import MockAsyncDestinationTransport, MockDestinationTransport
 
@@ -32,6 +35,7 @@ def test_destination_canonicalizes_urls() -> None:
     assert Destination.from_url("https://0xcafe.example.test/").url == (
         "https://0xcafe.example.test/"
     )
+    assert Destination.from_url("https://192.0.2.1/v1").url == "https://192.0.2.1/v1"
 
 
 @pytest.mark.parametrize(
@@ -41,6 +45,13 @@ def test_destination_canonicalizes_urls() -> None:
         "https://user@processor.example.test/",
         "https://processor.example.test/?key=value",
         "https://processor.example.test/#fragment",
+        "https://processor.example.test/?",
+        "https://processor.example.test/#",
+        "https://processor.example.test/?#",
+        "https://processor.example.test:/",
+        "https://[2001:db8::1]:/",
+        "https://[v1.com]/",
+        "https://[v1.com]:443/",
         "https:///missing-host",
         "https://processor.example.test./",
         "https://processor.example.test/a//b",
@@ -182,6 +193,114 @@ def test_async_bound_transport(evaluator: object) -> None:
         result = await guarded.dispatch(intent(), "synthetic-value", serializer)
         assert result.sent
         assert raw.calls[0][0].url == "https://processor.example.test/v1"
+
+    asyncio.run(scenario())
+
+
+def test_bound_serialization_failure_discards_payload_exception(evaluator: object) -> None:
+    guarded = BoundGuardedTransport(
+        evaluator,  # type: ignore[arg-type]
+        DestinationBindings({"processor_a": "https://processor.example.test/v1"}),
+        MockDestinationTransport(),
+    )
+    marker = "".join(("protected-bound", "-value"))
+
+    def broken(_: str) -> bytes:
+        raise ValueError(marker)
+
+    with pytest.raises(SerializationFailed) as raised:
+        guarded.dispatch(intent(), marker, broken)
+    rendered = "".join(
+        traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+    )
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
+    assert marker not in rendered
+
+
+def test_bound_serialization_failure_suppresses_ambient_exception(
+    evaluator: object,
+) -> None:
+    guarded = BoundGuardedTransport(
+        evaluator,  # type: ignore[arg-type]
+        DestinationBindings({"processor_a": "https://processor.example.test/v1"}),
+        MockDestinationTransport(),
+    )
+    marker = "".join(("ambient-bound-protected", "-value"))
+    try:
+        raise ValueError(marker)
+    except ValueError:
+
+        def invalid_serializer(_: str) -> bytes:
+            return "not-bytes"  # type: ignore[return-value]
+
+        with pytest.raises(SerializationFailed) as raised:
+            guarded.dispatch(intent(), "synthetic-value", invalid_serializer)
+    rendered = "".join(
+        traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+    )
+    assert raised.value.__suppress_context__
+    assert marker not in rendered
+
+
+def test_async_bound_transport_accepts_generator_awaitable_and_discards_failure(
+    evaluator: object,
+) -> None:
+    @types.coroutine
+    def generator_serializer(value: str):  # type: ignore[no-untyped-def]
+        yield from ()
+        return value.encode()
+
+    async def scenario() -> None:
+        raw = MockAsyncDestinationTransport()
+        guarded = BoundGuardedAsyncTransport(
+            evaluator,  # type: ignore[arg-type]
+            DestinationBindings({"processor_a": "https://processor.example.test/v1"}),
+            raw,
+        )
+        await guarded.dispatch(intent(), "generator-value", generator_serializer)
+        assert raw.calls[0][1] == b"generator-value"
+        marker = "".join(("protected-async-bound", "-value"))
+
+        async def broken(_: str) -> bytes:
+            raise ValueError(marker)
+
+        with pytest.raises(SerializationFailed) as raised:
+            await guarded.dispatch(intent(), marker, broken)
+        rendered = "".join(
+            traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+        )
+        assert raised.value.__cause__ is None
+        assert raised.value.__context__ is None
+        assert marker not in rendered
+
+    asyncio.run(scenario())
+
+
+def test_async_bound_serialization_failure_suppresses_ambient_exception(
+    evaluator: object,
+) -> None:
+    async def scenario() -> None:
+        guarded = BoundGuardedAsyncTransport(
+            evaluator,  # type: ignore[arg-type]
+            DestinationBindings({"processor_a": "https://processor.example.test/v1"}),
+            MockAsyncDestinationTransport(),
+        )
+        marker = "".join(("ambient-async-bound-protected", "-value"))
+        try:
+            raise ValueError(marker)
+        except ValueError:
+            with pytest.raises(SerializationFailed) as raised:
+                await guarded.dispatch(
+                    intent(),
+                    "synthetic-value",
+                    lambda _: "not-bytes",  # type: ignore[arg-type]
+                )
+        rendered = "".join(
+            traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+        )
+        assert raised.value.__suppress_context__
+        assert marker not in rendered
 
     asyncio.run(scenario())
 

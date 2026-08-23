@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Generic, Protocol, TypeVar
 
 from .errors import EgressRefused, SerializationFailed
@@ -20,6 +21,29 @@ class Transport(Protocol[ResponseT]):
 
 class AsyncTransport(Protocol[ResponseT]):
     async def send(self, provider: str, body: bytes) -> ResponseT: ...
+
+
+def _serialize_payload(
+    payload: PayloadT,
+    serializer: Callable[[PayloadT], bytes],
+) -> tuple[bool, bytes | None]:
+    try:
+        body = serializer(payload)
+    except Exception:
+        return False, None
+    return (True, body) if isinstance(body, bytes) else (False, None)
+
+
+async def _serialize_payload_async(
+    payload: PayloadT,
+    serializer: Callable[[PayloadT], bytes] | Callable[[PayloadT], Awaitable[bytes]],
+) -> tuple[bool, bytes | None]:
+    try:
+        serialized = serializer(payload)
+        body = await serialized if isawaitable(serialized) else serialized
+    except Exception:
+        return False, None
+    return (True, body) if isinstance(body, bytes) else (False, None)
 
 
 @dataclass(frozen=True)
@@ -48,10 +72,10 @@ class GuardedTransport(Generic[ResponseT]):
             return DispatchResult(decision=decision, serialized=False, sent=False, response=None)
         if not decision.allowed:
             raise EgressRefused(decision)
-        try:
-            body = serializer(payload)
-        except Exception as exc:
-            raise SerializationFailed(cause=exc) from exc
+        serialized, body = _serialize_payload(payload, serializer)
+        if not serialized or body is None:
+            del payload, serializer
+            raise SerializationFailed() from None
         response = self._transport.send(intent.provider, body)
         return DispatchResult(decision=decision, serialized=True, sent=True, response=response)
 
@@ -74,10 +98,9 @@ class GuardedAsyncTransport(Generic[ResponseT]):
             return DispatchResult(decision=decision, serialized=False, sent=False, response=None)
         if not decision.allowed:
             raise EgressRefused(decision)
-        try:
-            serialized = serializer(payload)
-            body = await serialized if hasattr(serialized, "__await__") else serialized
-        except Exception as exc:
-            raise SerializationFailed(cause=exc) from exc
+        serialized, body = await _serialize_payload_async(payload, serializer)
+        if not serialized or body is None:
+            del payload, serializer
+            raise SerializationFailed() from None
         response = await self._transport.send(intent.provider, body)
         return DispatchResult(decision=decision, serialized=True, sent=True, response=response)

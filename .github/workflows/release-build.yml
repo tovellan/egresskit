@@ -13,6 +13,7 @@ on:
         type: string
 
 permissions:
+  attestations: read
   contents: write
 
 concurrency:
@@ -64,11 +65,21 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          cd dist
-          sha256sum \
-            "egresskit-${VERSION}-py3-none-any.whl" \
-            "egresskit-${VERSION}.tar.gz" \
-            > SHA256SUMS
+          set -eu
+          wheel="egresskit-${VERSION}-py3-none-any.whl"
+          sdist="egresskit-${VERSION}.tar.gz"
+          (
+            cd dist
+            sha256sum "$wheel" "$sdist" > SHA256SUMS
+            mapfile -t checksum_names < <(awk '{print $2}' SHA256SUMS)
+            if [[ "${#checksum_names[@]}" != 2 || \
+                  "${checksum_names[0]}" != "$wheel" || \
+                  "${checksum_names[1]}" != "$sdist" ]]; then
+              echo "checksum manifest has unexpected entries or ordering" >&2
+              exit 1
+            fi
+            sha256sum --check --strict SHA256SUMS
+          )
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: egresskit-dist-${{ inputs.version }}
@@ -78,7 +89,7 @@ jobs:
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
-      - name: Create protected annotated tag and release
+      - name: Create exact annotated tag and verified release draft
         env:
           EXPECTED_HEAD: ${{ inputs.expected_head }}
           GH_TOKEN: ${{ github.token }}
@@ -86,18 +97,34 @@ jobs:
         run: |
           set -eu
           tag="v${VERSION}"
+          wheel="egresskit-${VERSION}-py3-none-any.whl"
+          sdist="egresskit-${VERSION}.tar.gz"
+          release_body="EgressKit $tag release with exact checksums. See CHANGELOG.md for details."
+          expected_assets="$(jq -cn \
+            --arg wheel "$wheel" \
+            --arg sdist "$sdist" \
+            '["SHA256SUMS", $sdist, $wheel] | sort')"
           remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           if [[ "$remote_main" != "$EXPECTED_HEAD" ]]; then
             echo "main changed during release verification" >&2
             exit 1
+          fi
+          remote_tag="$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')"
+          if [[ -n "$remote_tag" ]] && \
+             ! git show-ref --verify --quiet "refs/tags/$tag"; then
+            git fetch origin "refs/tags/$tag:refs/tags/$tag"
           fi
           if git show-ref --verify --quiet "refs/tags/$tag"; then
             if [[ "$(git cat-file -t "$tag")" != "tag" ]]; then
               echo "existing release tag is not annotated" >&2
               exit 1
             fi
-            if [[ "$(git rev-list -n 1 "$tag")" != "$EXPECTED_HEAD" ]]; then
-              echo "existing release tag points to another commit" >&2
+            tag_object="$(git cat-file -p "$tag")"
+            if [[ "$(sed -n '1p' <<<"$tag_object")" != \
+                    "object $EXPECTED_HEAD" || \
+                  "$(sed -n '2p' <<<"$tag_object")" != "type commit" || \
+                  "$(sed -n '3p' <<<"$tag_object")" != "tag $tag" ]]; then
+              echo "existing release tag has invalid target metadata" >&2
               exit 1
             fi
             tagger="$(git for-each-ref \
@@ -107,7 +134,17 @@ jobs:
               echo "existing release tag has invalid tagger metadata" >&2
               exit 1
             fi
+            tag_message="$(git for-each-ref \
+              --format='%(contents)' "refs/tags/$tag")"
+            if [[ "$tag_message" != "EgressKit $tag" ]]; then
+              echo "existing release tag has invalid message or signature data" >&2
+              exit 1
+            fi
           else
+            if [[ -n "$remote_tag" ]]; then
+              echo "remote release tag could not be loaded exactly" >&2
+              exit 1
+            fi
             git -c user.name='Tovellan Maintainers' \
               -c user.email='tovellan@users.noreply.github.com' \
               tag -a "$tag" -m "EgressKit $tag" "$EXPECTED_HEAD"
@@ -118,10 +155,145 @@ jobs:
             echo "remote annotated tag does not peel to the expected commit" >&2
             exit 1
           fi
-          gh release create "$tag" \
-            "dist/egresskit-${VERSION}-py3-none-any.whl" \
-            "dist/egresskit-${VERSION}.tar.gz" \
-            dist/SHA256SUMS \
-            --verify-tag \
-            --title "$tag" \
-            --notes "Protected EgressKit $tag release. See CHANGELOG.md for release details."
+
+          (
+            cd dist
+            mapfile -t checksum_names < <(awk '{print $2}' SHA256SUMS)
+            if [[ "${#checksum_names[@]}" != 2 || \
+                  "${checksum_names[0]}" != "$wheel" || \
+                  "${checksum_names[1]}" != "$sdist" ]]; then
+              echo "checksum manifest changed before draft upload" >&2
+              exit 1
+            fi
+            sha256sum --check --strict SHA256SUMS
+          )
+
+          wheel_digest="sha256:$(sha256sum "dist/$wheel" | awk '{print $1}')"
+          sdist_digest="sha256:$(sha256sum "dist/$sdist" | awk '{print $1}')"
+          sums_digest="sha256:$(sha256sum dist/SHA256SUMS | awk '{print $1}')"
+          releases_json="$(gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
+          matching_releases="$(jq -c --arg tag "$tag" \
+            '[.[][] | select(.tag_name == $tag)]' <<<"$releases_json")"
+          release_count="$(jq 'length' <<<"$matching_releases")"
+          if [[ "$release_count" -gt 1 ]]; then
+            echo "multiple releases unexpectedly use the exact tag" >&2
+            exit 1
+          fi
+
+          if [[ "$release_count" == 0 ]]; then
+            gh release create "$tag" \
+              "dist/$wheel" \
+              "dist/$sdist" \
+              dist/SHA256SUMS \
+              --draft \
+              --verify-tag \
+              --target "$EXPECTED_HEAD" \
+              --title "$tag" \
+              --notes "$release_body"
+          else
+            release_json="$(jq -c '.[0]' <<<"$matching_releases")"
+            if jq -e '.draft == false and .immutable == true' \
+              <<<"$release_json" >/dev/null; then
+              published_assets="$(jq -c \
+                '[.assets[].name] | sort' <<<"$release_json")"
+              jq -e \
+                --arg body "$release_body" \
+                --arg head "$EXPECTED_HEAD" \
+                --arg tag "$tag" \
+                --arg wheel "$wheel" \
+                --arg wheel_digest "$wheel_digest" \
+                --arg sdist "$sdist" \
+                --arg sdist_digest "$sdist_digest" \
+                --arg sums_digest "$sums_digest" \
+                '([.assets[] | {key: .name, value: .digest}] | from_entries) as $digests |
+                 (.tag_name == $tag and
+                  .target_commitish == $head and
+                  .name == $tag and
+                  .body == $body and
+                  .draft == false and
+                  .prerelease == false and
+                  .immutable == true and
+                  (.assets | length) == 3 and
+                  ([.assets[].name] | unique | length) == 3 and
+                  ([.assets[].state] | all(. == "uploaded")) and
+                  $digests[$wheel] == $wheel_digest and
+                  $digests[$sdist] == $sdist_digest and
+                  $digests["SHA256SUMS"] == $sums_digest)' \
+                <<<"$release_json" >/dev/null
+              if [[ "$published_assets" != "$expected_assets" ]]; then
+                echo "immutable release has unexpected asset names" >&2
+                exit 1
+              fi
+              gh release verify "$tag" --format json >/dev/null
+              exit 0
+            fi
+            if ! jq -e \
+              --arg body "$release_body" \
+              --arg head "$EXPECTED_HEAD" \
+              --arg tag "$tag" \
+              '.tag_name == $tag and
+               .target_commitish == $head and
+               .name == $tag and
+               .body == $body and
+               .draft == true and
+               .prerelease == false and
+               .immutable == false' \
+              <<<"$release_json" >/dev/null; then
+              echo "existing release is neither the exact draft nor an immutable release" >&2
+              exit 1
+            fi
+            existing_assets="$(jq -c '[.assets[].name] | sort' \
+              <<<"$release_json")"
+            if ! jq -e --argjson expected "$expected_assets" \
+              'all(.[]; . as $name | $expected | index($name)) and
+               (unique | length) == length' \
+              <<<"$existing_assets" >/dev/null; then
+              echo "existing release draft has unexpected or duplicate assets" >&2
+              exit 1
+            fi
+            gh release upload "$tag" \
+              "dist/$wheel" \
+              "dist/$sdist" \
+              dist/SHA256SUMS \
+              --clobber
+          fi
+
+          final_releases_json="$(gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
+          final_matching_releases="$(jq -c --arg tag "$tag" \
+            '[.[][] | select(.tag_name == $tag)]' <<<"$final_releases_json")"
+          if [[ "$(jq 'length' <<<"$final_matching_releases")" != 1 ]]; then
+            echo "exact release draft could not be reloaded" >&2
+            exit 1
+          fi
+          release_json="$(jq -c '.[0]' <<<"$final_matching_releases")"
+          draft_assets="$(jq -c '[.assets[].name] | sort' <<<"$release_json")"
+          if [[ "$draft_assets" != "$expected_assets" ]]; then
+            echo "release draft has unexpected asset names" >&2
+            exit 1
+          fi
+          jq -e \
+            --arg body "$release_body" \
+            --arg head "$EXPECTED_HEAD" \
+            --arg tag "$tag" \
+            --arg wheel "$wheel" \
+            --arg wheel_digest "$wheel_digest" \
+            --arg sdist "$sdist" \
+            --arg sdist_digest "$sdist_digest" \
+            --arg sums_digest "$sums_digest" \
+            '([.assets[] | {key: .name, value: .digest}] | from_entries) as $digests |
+             (.tag_name == $tag and
+              .target_commitish == $head and
+              .name == $tag and
+              .body == $body and
+              .draft == true and
+              .prerelease == false and
+              .immutable == false and
+              (.assets | length) == 3 and
+              ([.assets[].name] | unique | length) == 3 and
+              ([.assets[].state] | all(. == "uploaded")) and
+              $digests[$wheel] == $wheel_digest and
+              $digests[$sdist] == $sdist_digest and
+              $digests["SHA256SUMS"] == $sums_digest)' \
+            <<<"$release_json" >/dev/null

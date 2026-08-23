@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import Field, StrictBool, ValidationError, field_validator, model_validator
 
 from ._documents import DocumentParseError, parse_document
 from .errors import TestSuiteLoadError
@@ -63,7 +63,7 @@ class PolicyTestSuite(ImmutableModel):
 
 class PolicyTestCaseResult(ImmutableModel):
     id: Identifier
-    passed: bool
+    passed: StrictBool
     expected_status: DecisionStatus
     actual_status: DecisionStatus
     expected_reason_codes: tuple[ReasonCode, ...] | None
@@ -74,7 +74,7 @@ class PolicyTestReport(ImmutableModel):
     schema_version: Literal["1"] = "1"
     suite_id: Identifier
     policy_id: Identifier
-    passed: bool
+    passed: StrictBool
     total: int
     passed_count: int
     failed_count: int

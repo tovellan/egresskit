@@ -34,6 +34,87 @@ def test_sync_transport_sends_exact_destination_and_bytes() -> None:
     assert requests[0].content == b"synthetic-body"
 
 
+def test_safe_client_defaults_preserve_exact_nondefault_port() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, request=request)
+
+    with httpx.Client(
+        base_url="https://unused.example.test/base",
+        headers={"authorization": "Bearer synthetic-token"},
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        HTTPXDestinationTransport(client).send(
+            Destination.from_url("https://processor.example.test:8443/v1"),
+            b"fixture",
+        )
+    assert str(requests[0].url) == "https://processor.example.test:8443/v1"
+    assert requests[0].headers["host"] == "processor.example.test:8443"
+    assert requests[0].headers["authorization"] == "Bearer synthetic-token"
+
+
+@pytest.mark.parametrize(
+    "client_options",
+    [
+        {"params": {"tenant": "other"}},
+        {"headers": {"host": "other.example.test"}},
+        {"auth": ("synthetic-user", "synthetic-password")},
+        {"event_hooks": {"request": [lambda request: None]}},
+    ],
+)
+def test_destination_mutating_client_configuration_is_rejected(
+    client_options: dict[str, object],
+) -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, request=request)
+
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(handler),
+            **client_options,  # type: ignore[arg-type]
+        ) as client,
+        pytest.raises(ValueError, match="validated destination"),
+    ):
+        HTTPXDestinationTransport(client)
+    assert calls == []
+
+
+def test_client_mutation_after_adapter_construction_fails_before_send() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        transport = HTTPXDestinationTransport(client)
+        client.params = httpx.QueryParams({"tenant": "other"})
+        with pytest.raises(ValueError, match="validated destination"):
+            transport.send(Destination.from_url("https://processor.example.test/v1"), b"fixture")
+    assert calls == []
+
+
+def test_sync_transport_rejects_async_client_kind() -> None:
+    async def scenario() -> None:
+        calls: list[httpx.Request] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            return httpx.Response(200, request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(TypeError, match=r"httpx\.Client"):
+                HTTPXDestinationTransport(client)  # type: ignore[arg-type]
+        assert calls == []
+
+    asyncio.run(scenario())
+
+
 def test_redirect_is_not_followed_when_client_default_enables_it() -> None:
     requests: list[httpx.Request] = []
 
@@ -120,3 +201,36 @@ def test_async_transport_sends_without_following_redirect() -> None:
         assert len(requests) == 1
 
     asyncio.run(scenario())
+
+
+def test_async_transport_rejects_destination_mutating_defaults() -> None:
+    async def scenario() -> None:
+        calls: list[httpx.Request] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            return httpx.Response(200, request=request)
+
+        async with httpx.AsyncClient(
+            params={"tenant": "other"}, transport=httpx.MockTransport(handler)
+        ) as client:
+            with pytest.raises(ValueError, match="validated destination"):
+                HTTPXAsyncDestinationTransport(client)
+        assert calls == []
+
+    asyncio.run(scenario())
+
+
+def test_async_transport_rejects_sync_client_kind() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, request=request)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TypeError, match=r"httpx\.AsyncClient"),
+    ):
+        HTTPXAsyncDestinationTransport(client)  # type: ignore[arg-type]
+    assert calls == []
