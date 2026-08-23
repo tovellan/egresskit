@@ -11,17 +11,17 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.3.0 adds deterministic policy lint reports alongside exact provider
-destination bindings, declarative policy test suites, and rejection of
-resolver-ambiguous legacy IPv4 host spellings. The policy, policy test, and lint report
-schemas are each versioned as `"1"`. Unknown versions, fields, providers, purposes, and
-unmatched requests fail closed.
+Version 0.4.0 adds deterministic decision explanations and CLI schemas alongside policy
+lint reports, exact provider destination bindings, declarative policy test suites, and
+rejection of resolver-ambiguous legacy IPv4 host spellings. Every serialized contract is
+versioned. Unknown versions, fields, providers, purposes, and unmatched requests fail
+closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.3.0"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.4.0"
 ```
 
 Python 3.10 through 3.14 are supported.
@@ -102,9 +102,11 @@ The CLI emits JSON to support automation:
 ```console
 egresskit validate POLICY
 egresskit lint POLICY
+egresskit explain POLICY --classification LABEL --purpose ID \
+  --provider ID --environment ID [--mode live|synthetic] [--dry-run]
 egresskit decide POLICY --classification LABEL --purpose ID \
   --provider ID --environment ID [--mode live|synthetic] [--dry-run]
-egresskit schema [--kind policy|tests]
+egresskit schema [--kind policy|tests|lint|explanation]
 egresskit test POLICY SUITE
 egresskit fixture
 ```

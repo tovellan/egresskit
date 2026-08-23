@@ -37,6 +37,10 @@ def test_validate_and_schema(tmp_path: Path, capsys: object) -> None:
     assert "schema_version" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
     assert run(["schema", "--kind", "tests"]) == 0
     assert "suite_id" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
+    assert run(["schema", "--kind", "lint"]) == 0
+    assert "diagnostics" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
+    assert run(["schema", "--kind", "explanation"]) == 0
+    assert "reason_codes" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
 
 
 def test_lint_command_passes_and_reports_findings(tmp_path: Path, capsys: object) -> None:
@@ -79,6 +83,32 @@ def test_decide_allow_and_deny(tmp_path: Path, capsys: object) -> None:
     assert json.loads(capsys.readouterr().out)["status"] == "allow"  # type: ignore[attr-defined]
     assert run([*common, "--mode", "live"]) == EXIT_DENIED
     assert json.loads(capsys.readouterr().out)["status"] == "deny"  # type: ignore[attr-defined]
+
+
+def test_explain_is_deterministic_and_omits_receipt(tmp_path: Path, capsys: object) -> None:
+    path = write_policy(tmp_path)
+    command = [
+        "explain",
+        str(path),
+        "--classification",
+        "internal",
+        "--purpose",
+        "summarize",
+        "--provider",
+        "processor_a",
+        "--environment",
+        "test",
+        "--mode",
+        "synthetic",
+    ]
+    assert run(command) == 0
+    first = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert run(command) == 0
+    second = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert first == second
+    assert first["status"] == "allow"
+    assert "receipt" not in first
+    assert "evaluated_at" not in first
 
 
 def test_invalid_policy_is_machine_readable(tmp_path: Path, capsys: object) -> None:
@@ -145,4 +175,4 @@ def test_module_entrypoint() -> None:
         text=True,
     )
     assert completed.returncode == 0
-    assert completed.stdout.strip() == "egresskit 0.3.0"
+    assert completed.stdout.strip() == "egresskit 0.4.0"

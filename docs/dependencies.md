@@ -1,6 +1,6 @@
 # Dependency and license review
 
-Reviewed for version 0.3.0 on 2026-08-24.
+Reviewed for version 0.4.0 on 2026-08-24.
 
 The runtime has two direct dependencies:
 
