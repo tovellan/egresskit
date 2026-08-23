@@ -27,10 +27,10 @@ rules:
       - test
     execution_modes:
       - synthetic
-  - id: deny_restricted_test
+  - id: deny_public_test
     effect: deny
     classifications:
-      - restricted
+      - public
     purposes:
       - test_processing
     providers:

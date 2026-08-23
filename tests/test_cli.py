@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from egresskit.cli import EXIT_DENIED, EXIT_INVALID, EXIT_TEST_FAILURE, run
+from egresskit.cli import EXIT_DENIED, EXIT_INVALID, EXIT_LINT_FAILURE, EXIT_TEST_FAILURE, run
 
 from .conftest import policy_data
 from .test_policy_tests import suite_data
@@ -37,6 +37,21 @@ def test_validate_and_schema(tmp_path: Path, capsys: object) -> None:
     assert "schema_version" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
     assert run(["schema", "--kind", "tests"]) == 0
     assert "suite_id" in json.loads(capsys.readouterr().out)["properties"]  # type: ignore[attr-defined]
+
+
+def test_lint_command_passes_and_reports_findings(tmp_path: Path, capsys: object) -> None:
+    path = write_policy(tmp_path)
+    assert run(["lint", str(path)]) == 0
+    report = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert report["passed"] is True
+
+    data = policy_data()
+    data["rules"] = []
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert run(["lint", str(path)]) == EXIT_LINT_FAILURE
+    report = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert report["passed"] is False
+    assert report["diagnostic_count"] == 4
 
 
 def test_fixture(tmp_path: Path, capsys: object) -> None:
@@ -130,4 +145,4 @@ def test_module_entrypoint() -> None:
         text=True,
     )
     assert completed.returncode == 0
-    assert completed.stdout.strip() == "egresskit 0.2.1"
+    assert completed.stdout.strip() == "egresskit 0.3.0"

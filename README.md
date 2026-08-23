@@ -11,16 +11,17 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.2.1 adds exact provider destination bindings, versioned declarative policy
-test suites, and rejection of resolver-ambiguous legacy IPv4 host spellings. The policy
-and policy test schemas are each versioned as `"1"`. Unknown versions, fields,
-providers, purposes, and unmatched requests fail closed.
+Version 0.3.0 adds deterministic policy lint reports alongside exact provider
+destination bindings, declarative policy test suites, and rejection of
+resolver-ambiguous legacy IPv4 host spellings. The policy, policy test, and lint report
+schemas are each versioned as `"1"`. Unknown versions, fields, providers, purposes, and
+unmatched requests fail closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.2.1"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.3.0"
 ```
 
 Python 3.10 through 3.14 are supported.
@@ -34,6 +35,7 @@ python -m venv .venv
 . .venv/bin/activate
 python -m pip install .
 egresskit validate examples/synthetic-policy.yaml
+egresskit lint examples/synthetic-policy.yaml
 egresskit test examples/synthetic-policy.yaml examples/synthetic-tests.yaml
 egresskit decide examples/synthetic-policy.yaml \
   --classification internal \
@@ -99,6 +101,7 @@ The CLI emits JSON to support automation:
 
 ```console
 egresskit validate POLICY
+egresskit lint POLICY
 egresskit decide POLICY --classification LABEL --purpose ID \
   --provider ID --environment ID [--mode live|synthetic] [--dry-run]
 egresskit schema [--kind policy|tests]
@@ -109,6 +112,7 @@ egresskit fixture
 Exit code `0` means the command succeeded or the decision allowed egress. Exit code `2`
 means input or policy validation failed. Exit code `3` means the decision denied egress.
 Exit code `4` means at least one declarative policy test failed.
+Exit code `5` means policy lint diagnostics were found.
 
 ## Development
 
