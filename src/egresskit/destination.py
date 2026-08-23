@@ -150,12 +150,10 @@ class DestinationBindings:
 
     def resolve(self, provider: str) -> Destination:
         validated_provider = _validate_provider_identifier(provider)
-        try:
-            return self._bindings[validated_provider]
-        except KeyError:
-            raise DestinationRefused(
-                provider=validated_provider, reason="provider_unbound"
-            ) from None
+        destination = self._bindings.get(validated_provider)
+        if destination is None:
+            raise DestinationRefused(provider=None, reason="provider_unbound") from None
+        return destination
 
     def require(self, provider: str, destination: str | Destination) -> Destination:
         validated_provider = _validate_provider_identifier(provider)

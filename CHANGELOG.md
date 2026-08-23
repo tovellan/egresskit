@@ -13,6 +13,7 @@ compatibility is additionally governed by `schema_version`.
 - Make evaluator policy state read-only so rules, capabilities, and digests cannot drift.
 - Reject coercive security booleans, active provider and destination subclasses, invalid
   provider lookups, empty URL delimiters, and bracketed non-IPv6 hosts.
+- Omit caller-supplied lookup values from unbound-provider errors.
 - Version top-level intents, decisions, CLI argument errors, and structured errors.
 - Publish future releases from complete drafts and verify GitHub-native immutability and
   exact asset digests.

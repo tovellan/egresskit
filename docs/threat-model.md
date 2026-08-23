@@ -29,6 +29,7 @@ unless its declared metadata is explicitly allowed by a valid local policy.
 - Strict schema validation rejects unknown policy fields and unsupported versions.
 - Security-sensitive boolean fields reject string and numeric coercion.
 - Unknown provider destination bindings fail before serialization.
+- Unbound-provider errors omit the public caller's lookup value.
 - Canonical HTTPS destination bindings reject credentials, queries, fragments, encoded
   paths, dot segments, and noncanonical hosts.
 - Destination values reject active subclasses that could change a validated URL later.

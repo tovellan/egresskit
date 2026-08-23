@@ -46,14 +46,16 @@ class SerializationFailed(EgressKitError):
 class DestinationRefused(EgressKitError):
     """A provider has no binding or an adapter attempted another destination."""
 
-    def __init__(self, *, provider: str, reason: str) -> None:
+    def __init__(self, *, provider: str | None, reason: str) -> None:
         super().__init__("destination_refused", "destination binding refused the request")
         self.provider = provider
         self.reason = reason
 
     def to_dict(self) -> dict[str, Any]:
         value = super().to_dict()
-        value["error"].update({"provider": self.provider, "reason": self.reason})
+        value["error"]["reason"] = self.reason
+        if self.provider is not None:
+            value["error"]["provider"] = self.provider
         return value
 
 

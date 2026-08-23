@@ -53,13 +53,14 @@ For destination enforcement, construct `DestinationBindings` with an exact canon
 HTTPS URL for each provider and use `BoundGuardedTransport` or
 `BoundGuardedAsyncTransport`. An allowed request resolves its provider binding before
 the serializer runs. An unknown binding raises `DestinationRefused` with the reason
-`provider_unbound`. `DestinationBindings.require(provider, destination)` lets an adapter
-verify a caller-selected destination and raises the reason `destination_mismatch` when
-it differs. Both public lookup methods require an exact built-in provider string and
-validate its identifier and length before lookup; invalid input raises a fixed
-`ValueError` without reflecting the rejected value. Destination URLs, direct destination
-fields, and passed `Destination` objects must also use exact built-in or EgressKit types;
-active subclasses are rejected before their methods can run.
+`provider_unbound` and omits the caller-supplied provider value.
+`DestinationBindings.require(provider, destination)` lets an adapter verify a
+caller-selected destination and raises the reason `destination_mismatch` when it differs.
+Both public lookup methods require an exact built-in provider string and validate its
+identifier and length before lookup; invalid input raises a fixed `ValueError` without
+reflecting the rejected value. Destination URLs, direct destination fields, and passed
+`Destination` objects must also use exact built-in or EgressKit types; active subclasses
+are rejected before their methods can run.
 
 The bound raw transport receives `send(destination: Destination, body: bytes)`. EgressKit
 has no HTTP client dependency. See [Destination binding](destinations.md) for the adapter

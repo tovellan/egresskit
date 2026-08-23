@@ -194,10 +194,13 @@ def test_bindings_reject_empty_invalid_unknown_and_mismatched() -> None:
     with pytest.raises(DestinationRefused) as unknown:
         bindings.resolve("missing")
     assert unknown.value.reason == "provider_unbound"
+    assert unknown.value.provider is None
+    assert "provider" not in unknown.value.to_dict()["error"]
     with pytest.raises(DestinationRefused) as mismatch:
         bindings.require("processor_a", "https://other.example.test/")
     error = mismatch.value.to_dict()
     assert error["error"]["reason"] == "destination_mismatch"
+    assert error["error"]["provider"] == "processor_a"
     assert "other.example.test" not in json.dumps(error)
 
 
@@ -259,6 +262,33 @@ def test_public_binding_lookup_rejects_hostile_string_subclasses() -> None:
         bindings.resolve(provider)
     with pytest.raises(ValueError, match=r"^provider identifier is invalid$"):
         bindings.require(provider, "https://processor.example.test/")
+
+
+def test_valid_unbound_provider_lookup_never_reflects_caller_value() -> None:
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    marker = "sk_live_sensitive_token_value"
+
+    operations = (
+        lambda: bindings.resolve(marker),
+        lambda: bindings.require(marker, "https://processor.example.test/"),
+    )
+    for operation in operations:
+        with pytest.raises(DestinationRefused) as raised:
+            operation()
+        rendered = "".join(
+            traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+        )
+        error = raised.value.to_dict()
+        assert raised.value.reason == "provider_unbound"
+        assert raised.value.provider is None
+        assert raised.value.__cause__ is None
+        assert raised.value.__context__ is None
+        assert "provider" not in error["error"]
+        assert marker not in str(raised.value)
+        assert marker not in repr(raised.value)
+        assert marker not in repr(raised.value.__dict__)
+        assert marker not in json.dumps(error)
+        assert marker not in rendered
 
 
 def test_bound_transport_resolves_before_serialization(evaluator: object) -> None:
