@@ -13,4 +13,5 @@ binding, receipts, and policy compatibility. Write `none` only when none apply.
 - [ ] `make ci` passes.
 - [ ] Documentation is updated.
 - [ ] No credentials, personal data, real payloads, or proprietary policies are included.
-- [ ] Commits are signed off under the Developer Certificate of Origin.
+- [ ] Commit metadata uses the configured Git identity with no authorship or generator
+      trailers.
