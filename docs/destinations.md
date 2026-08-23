@@ -14,7 +14,12 @@ credentials, a query, a fragment, percent encoding, repeated path separators, or
 segments. Empty query, fragment, and port delimiters are also rejected instead of being
 canonicalized away. Bracketed authorities must contain an IPv6 address. An unbound
 provider and a mismatched destination produce structured errors that contain only the
-provider identifier and a fixed reason code.
+validated provider identifier and a fixed reason code. Public `resolve()` and `require()`
+calls require an exact built-in provider string, then reject invalid identifiers or
+overlength input with a fixed error that does not reflect the rejected value. URL strings,
+direct host and path strings, integer ports, and passed `Destination` objects must also be
+exact built-in or EgressKit types. Subclasses with active behavior are rejected before
+storage or comparison.
 
 ## Adapter contract
 

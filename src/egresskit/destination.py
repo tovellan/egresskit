@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Generic, Protocol, TypeVar
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from .errors import DestinationRefused, EgressRefused, SerializationFailed
 from .models import IDENTIFIER_PATTERN, Decision, EgressIntent
@@ -24,6 +24,21 @@ _LEGACY_IPV4 = re.compile(r"^(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+)){
 _PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@/-]*$")
 
 
+def _validate_provider_identifier(provider: object) -> str:
+    if type(provider) is not str or len(provider) > 128 or not _IDENTIFIER.fullmatch(provider):
+        raise ValueError("provider identifier is invalid")
+    return provider
+
+
+def _split_destination_url(value: str) -> tuple[SplitResult, int | None] | None:
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return None
+    return parsed, port
+
+
 @dataclass(frozen=True, slots=True)
 class Destination:
     """Canonical HTTPS destination without credentials, query, or fragment."""
@@ -33,34 +48,33 @@ class Destination:
     path: str = "/"
 
     def __post_init__(self) -> None:
-        if not isinstance(self.host, str):
+        if type(self) is not Destination:
+            raise ValueError("destination type is invalid")
+        if type(self.host) is not str:
             raise ValueError("destination host is invalid")
         if self._canonical_host(self.host) != self.host:
             raise ValueError("destination host must be canonical")
-        if (
-            not isinstance(self.port, int)
-            or isinstance(self.port, bool)
-            or not 1 <= self.port <= 65535
-        ):
+        if type(self.port) is not int or not 1 <= self.port <= 65535:
             raise ValueError("destination port is invalid")
-        if not isinstance(self.path, str):
+        if type(self.path) is not str:
             raise ValueError("destination path is invalid")
         self._validate_path(self.path)
 
     @classmethod
     def from_url(cls, value: str) -> Destination:
+        if cls is not Destination:
+            raise ValueError("destination type is invalid")
         if (
-            not isinstance(value, str)
+            type(value) is not str
             or not value.isascii()
             or value != value.strip()
             or any(ord(character) < 32 or ord(character) == 127 for character in value)
         ):
             raise ValueError("destination URL is invalid")
-        try:
-            parsed = urlsplit(value)
-            port = parsed.port
-        except ValueError as exc:
-            raise ValueError("destination URL is invalid") from exc
+        parsed_url = _split_destination_url(value)
+        if parsed_url is None:
+            raise ValueError("destination URL is invalid") from None
+        parsed, port = parsed_url
         if parsed.scheme.lower() != "https":
             raise ValueError("destination scheme must be https")
         if parsed.username is not None or parsed.password is not None:
@@ -114,42 +128,41 @@ class Destination:
         return f"https://{authority}{self.path}"
 
 
+def _validate_destination_binding(destination: object) -> Destination:
+    if type(destination) is Destination:
+        return destination
+    if type(destination) is str:
+        return Destination.from_url(destination)
+    raise ValueError("destination binding is invalid")
+
+
 class DestinationBindings:
     """Immutable exact bindings from policy provider identifiers to destinations."""
 
     def __init__(self, bindings: Mapping[str, str | Destination]) -> None:
         normalized: dict[str, Destination] = {}
         for provider, destination in bindings.items():
-            if (
-                not isinstance(provider, str)
-                or not _IDENTIFIER.fullmatch(provider)
-                or len(provider) > 128
-            ):
-                raise ValueError("provider identifier is invalid")
-            normalized[provider] = (
-                destination
-                if isinstance(destination, Destination)
-                else Destination.from_url(destination)
-            )
+            validated_provider = _validate_provider_identifier(provider)
+            normalized[validated_provider] = _validate_destination_binding(destination)
         if not normalized:
             raise ValueError("at least one destination binding is required")
         self._bindings = MappingProxyType(normalized)
 
     def resolve(self, provider: str) -> Destination:
+        validated_provider = _validate_provider_identifier(provider)
         try:
-            return self._bindings[provider]
+            return self._bindings[validated_provider]
         except KeyError:
-            raise DestinationRefused(provider=provider, reason="provider_unbound") from None
+            raise DestinationRefused(
+                provider=validated_provider, reason="provider_unbound"
+            ) from None
 
     def require(self, provider: str, destination: str | Destination) -> Destination:
-        expected = self.resolve(provider)
-        actual = (
-            destination
-            if isinstance(destination, Destination)
-            else Destination.from_url(destination)
-        )
+        validated_provider = _validate_provider_identifier(provider)
+        expected = self.resolve(validated_provider)
+        actual = _validate_destination_binding(destination)
         if actual != expected:
-            raise DestinationRefused(provider=provider, reason="destination_mismatch")
+            raise DestinationRefused(provider=validated_provider, reason="destination_mismatch")
         return expected
 
 

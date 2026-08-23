@@ -31,7 +31,7 @@ def _serialize_payload(
         body = serializer(payload)
     except Exception:
         return False, None
-    return (True, body) if isinstance(body, bytes) else (False, None)
+    return (True, body) if type(body) is bytes else (False, None)
 
 
 async def _serialize_payload_async(
@@ -43,7 +43,7 @@ async def _serialize_payload_async(
         body = await serialized if isawaitable(serialized) else serialized
     except Exception:
         return False, None
-    return (True, body) if isinstance(body, bytes) else (False, None)
+    return (True, body) if type(body) is bytes else (False, None)
 
 
 @dataclass(frozen=True)

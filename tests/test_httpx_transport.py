@@ -158,6 +158,64 @@ def test_non_body_methods_are_rejected(method: object) -> None:
         HTTPXDestinationTransport(client, method=method)  # type: ignore[arg-type]
 
 
+def test_active_method_subclass_is_rejected_before_execution() -> None:
+    marker = "active-httpx-method-marker"
+
+    class ActiveMethod(str):
+        def upper(self) -> str:
+            raise RuntimeError(marker)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200))) as client,
+        pytest.raises(ValueError, match="POST, PUT, or PATCH"),
+    ):
+        HTTPXDestinationTransport(client, method=ActiveMethod("POST"))
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200))
+        ) as client:
+            with pytest.raises(ValueError, match="POST, PUT, or PATCH"):
+                HTTPXAsyncDestinationTransport(client, method=ActiveMethod("POST"))
+
+    asyncio.run(scenario())
+
+
+def test_sync_transport_rejects_active_request_value_subclasses() -> None:
+    marker = "active-httpx-request-marker"
+    requests: list[httpx.Request] = []
+
+    class ActiveDestination(Destination):
+        def __post_init__(self) -> None:
+            pass
+
+        @property
+        def url(self) -> str:
+            raise RuntimeError(marker)
+
+    class ActiveBytes(bytes):
+        def __len__(self) -> int:
+            raise RuntimeError(marker)
+
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            raise RuntimeError(marker)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        transport = HTTPXDestinationTransport(client)
+        with pytest.raises(ValueError, match="exact Destination"):
+            transport.send(ActiveDestination(host="processor.example.test"), b"fixture")
+        with pytest.raises(ValueError, match="exact built-in bytes"):
+            transport.send(
+                Destination.from_url("https://processor.example.test/"),
+                ActiveBytes(b"fixture"),
+            )
+    assert requests == []
+
+
 def test_bound_transport_integrates_before_serialization() -> None:
     requests: list[httpx.Request] = []
 
@@ -234,3 +292,42 @@ def test_async_transport_rejects_sync_client_kind() -> None:
     ):
         HTTPXAsyncDestinationTransport(client)  # type: ignore[arg-type]
     assert calls == []
+
+
+def test_async_transport_rejects_active_request_value_subclasses() -> None:
+    marker = "active-async-httpx-request-marker"
+
+    class ActiveDestination(Destination):
+        def __post_init__(self) -> None:
+            pass
+
+        @property
+        def url(self) -> str:
+            raise RuntimeError(marker)
+
+    class ActiveBytes(bytes):
+        def __len__(self) -> int:
+            raise RuntimeError(marker)
+
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            raise RuntimeError(marker)
+
+    async def scenario() -> None:
+        requests: list[httpx.Request] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            transport = HTTPXAsyncDestinationTransport(client)
+            with pytest.raises(ValueError, match="exact Destination"):
+                await transport.send(ActiveDestination(host="processor.example.test"), b"fixture")
+            with pytest.raises(ValueError, match="exact built-in bytes"):
+                await transport.send(
+                    Destination.from_url("https://processor.example.test/"),
+                    ActiveBytes(b"fixture"),
+                )
+        assert requests == []
+
+    asyncio.run(scenario())

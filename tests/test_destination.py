@@ -92,6 +92,90 @@ def test_direct_destination_construction_is_validated(destination: dict[str, obj
         Destination(**destination)  # type: ignore[arg-type]
 
 
+def test_destination_rejects_active_value_subclasses_before_methods_run() -> None:
+    marker = "active-destination-subclass-marker"
+
+    class ActiveString(str):
+        def isascii(self) -> bool:
+            raise RuntimeError(marker)
+
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            raise RuntimeError(marker)
+
+        def __format__(self, format_spec: str) -> str:
+            del format_spec
+            raise RuntimeError(marker)
+
+    class ActivePort(int):
+        def __format__(self, format_spec: str) -> str:
+            del format_spec
+            raise RuntimeError(marker)
+
+    class ActiveDestination(Destination):
+        def __new__(cls, *args: object, **kwargs: object) -> ActiveDestination:
+            del args, kwargs
+            raise RuntimeError(marker)
+
+    with pytest.raises(ValueError, match=r"^destination type is invalid$"):
+        ActiveDestination.from_url("https://processor.example.test/")
+    with pytest.raises(ValueError, match=r"^destination URL is invalid$"):
+        Destination.from_url(ActiveString("https://processor.example.test/"))
+    with pytest.raises(ValueError, match=r"^destination host is invalid$"):
+        Destination(host=ActiveString("processor.example.test"))
+    with pytest.raises(ValueError, match=r"^destination path is invalid$"):
+        Destination(host="processor.example.test", path=ActiveString("/v1"))
+    with pytest.raises(ValueError, match=r"^destination port is invalid$"):
+        Destination(host="processor.example.test", port=ActivePort(443))
+
+
+def test_bindings_reject_active_destination_subclasses_before_methods_run() -> None:
+    marker = "active-destination-object-marker"
+
+    class ActiveDestination(Destination):
+        def __post_init__(self) -> None:
+            pass
+
+        @property
+        def url(self) -> str:
+            raise RuntimeError(marker)
+
+    active = ActiveDestination(host="processor.example.test")
+    with pytest.raises(ValueError, match=r"^destination binding is invalid$"):
+        DestinationBindings({"processor_a": active})
+
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    with pytest.raises(ValueError, match=r"^destination binding is invalid$"):
+        bindings.require("processor_a", active)
+
+
+def test_malformed_destination_tracebacks_do_not_reflect_rejected_value() -> None:
+    marker = "protected-invalid-port-marker"
+    url = f"https://processor.example.test:{marker}/"
+
+    with pytest.raises(ValueError, match=r"^destination URL is invalid$") as direct:
+        Destination.from_url(url)
+    direct_traceback = "".join(
+        traceback.format_exception(type(direct.value), direct.value, direct.value.__traceback__)
+    )
+    assert direct.value.__cause__ is None
+    assert direct.value.__context__ is None
+    assert direct.value.__suppress_context__
+    assert marker not in direct_traceback
+
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    with pytest.raises(ValueError, match=r"^destination URL is invalid$") as required:
+        bindings.require("processor_a", url)
+    required_traceback = "".join(
+        traceback.format_exception(
+            type(required.value), required.value, required.value.__traceback__
+        )
+    )
+    assert required.value.__cause__ is None
+    assert required.value.__context__ is None
+    assert required.value.__suppress_context__
+    assert marker not in required_traceback
+
+
 def test_bindings_resolve_and_require_exact_destination() -> None:
     bindings = DestinationBindings({"processor_a": "https://processor.example.test/v1"})
     expected = bindings.resolve("processor_a")
@@ -115,6 +199,66 @@ def test_bindings_reject_empty_invalid_unknown_and_mismatched() -> None:
     error = mismatch.value.to_dict()
     assert error["error"]["reason"] == "destination_mismatch"
     assert "other.example.test" not in json.dumps(error)
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [
+        "",
+        "INVALID",
+        "invalid/provider",
+        "sk-live-sensitive/token-value",
+        "a" * 129,
+        None,
+        7,
+    ],
+)
+def test_public_binding_lookup_rejects_invalid_provider_without_reflection(
+    provider: object,
+) -> None:
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    marker = provider if type(provider) is str else repr(provider)
+    with pytest.raises(ValueError, match=r"^provider identifier is invalid$") as resolved:
+        bindings.resolve(provider)  # type: ignore[arg-type]
+    resolved_traceback = "".join(
+        traceback.format_exception(
+            type(resolved.value), resolved.value, resolved.value.__traceback__
+        )
+    )
+    assert str(resolved.value) == "provider identifier is invalid"
+    if marker:
+        assert marker not in resolved_traceback
+
+    with pytest.raises(ValueError, match=r"^provider identifier is invalid$") as required:
+        bindings.require(provider, "https://processor.example.test/")  # type: ignore[arg-type]
+    required_traceback = "".join(
+        traceback.format_exception(
+            type(required.value), required.value, required.value.__traceback__
+        )
+    )
+    assert str(required.value) == "provider identifier is invalid"
+    if marker:
+        assert marker not in required_traceback
+
+
+def test_public_binding_lookup_rejects_hostile_string_subclasses() -> None:
+    class HostileProvider(str):
+        def __len__(self) -> int:
+            pytest.fail("provider subclass length executed")
+
+        def __hash__(self) -> int:
+            pytest.fail("provider subclass hash executed")
+
+        def __eq__(self, other: object) -> bool:
+            del other
+            pytest.fail("provider subclass equality executed")
+
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    provider = HostileProvider("processor_a")
+    with pytest.raises(ValueError, match=r"^provider identifier is invalid$"):
+        bindings.resolve(provider)
+    with pytest.raises(ValueError, match=r"^provider identifier is invalid$"):
+        bindings.require(provider, "https://processor.example.test/")
 
 
 def test_bound_transport_resolves_before_serialization(evaluator: object) -> None:

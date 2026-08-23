@@ -25,9 +25,11 @@ with httpx.Client(headers={"authorization": "Bearer application-managed"}) as cl
 ```
 
 `HTTPXDestinationTransport` supports `POST`, `PUT`, and `PATCH`, with `POST` as the
-default. It sends the serializer output as raw `content` bytes. The async equivalent is
-`HTTPXAsyncDestinationTransport` and accepts an `httpx.AsyncClient`. Each adapter rejects
-the opposite client kind during construction, before it can build or send a request.
+default. The method must be an exact built-in string. It sends the serializer output as
+raw `content` bytes. The async equivalent is `HTTPXAsyncDestinationTransport` and accepts
+an `httpx.AsyncClient`. Each adapter rejects the opposite client kind during construction,
+before it can build or send a request. Direct adapter calls require an exact
+`Destination` and exact built-in `bytes`; active subclasses are rejected before use.
 
 Every request sets `follow_redirects=False`, even if the client default enables
 redirects. A redirect response is returned to the application and is not followed. The

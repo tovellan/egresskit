@@ -119,6 +119,34 @@ def test_non_bytes_serializer_result_fails_closed(evaluator: object) -> None:
     assert_safe_serialization_error(raised.value, marker)
 
 
+def test_bytes_subclass_serializer_result_fails_closed(evaluator: object) -> None:
+    marker = "".join(("protected-bytes-subclass", "-value"))
+
+    class ActiveBytes(bytes):
+        def __len__(self) -> int:
+            pytest.fail("bytes subclass length executed")
+
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            pytest.fail("bytes subclass iteration executed")
+
+        def __bytes__(self) -> bytes:
+            pytest.fail("bytes subclass conversion executed")
+
+        def __repr__(self) -> str:
+            pytest.fail("bytes subclass representation executed")
+
+    raw = MockTransport()
+    guarded = GuardedTransport(evaluator, raw)  # type: ignore[arg-type]
+
+    def active_serializer(_: str) -> bytes:
+        return ActiveBytes(marker.encode())
+
+    with pytest.raises(SerializationFailed) as raised:
+        guarded.dispatch(intent(), "synthetic-value", active_serializer)
+    assert_safe_serialization_error(raised.value, marker)
+    assert raw.calls == []
+
+
 def test_serialization_failure_suppresses_ambient_exception(evaluator: object) -> None:
     guarded = GuardedTransport(evaluator, MockTransport())  # type: ignore[arg-type]
     marker = "".join(("ambient-protected", "-value"))
@@ -182,6 +210,37 @@ def test_async_serialization_failure(evaluator: object) -> None:
         with pytest.raises(SerializationFailed) as raised:
             await guarded.dispatch(intent(), marker, broken)
         assert_safe_serialization_error(raised.value, marker)
+
+    asyncio.run(scenario())
+
+
+def test_async_bytes_subclass_serializer_result_fails_closed(evaluator: object) -> None:
+    marker = "".join(("protected-async-bytes-subclass", "-value"))
+
+    class ActiveBytes(bytes):
+        def __len__(self) -> int:
+            pytest.fail("async bytes subclass length executed")
+
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            pytest.fail("async bytes subclass iteration executed")
+
+        def __bytes__(self) -> bytes:
+            pytest.fail("async bytes subclass conversion executed")
+
+        def __repr__(self) -> str:
+            pytest.fail("async bytes subclass representation executed")
+
+    async def scenario() -> None:
+        raw = MockAsyncTransport()
+        guarded = GuardedAsyncTransport(evaluator, raw)  # type: ignore[arg-type]
+
+        async def active_serializer(_: str) -> bytes:
+            return ActiveBytes(marker.encode())
+
+        with pytest.raises(SerializationFailed) as raised:
+            await guarded.dispatch(intent(), "synthetic-value", active_serializer)
+        assert_safe_serialization_error(raised.value, marker)
+        assert raw.calls == []
 
     asyncio.run(scenario())
 

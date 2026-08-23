@@ -7,10 +7,12 @@ compatibility is additionally governed by `schema_version`.
 
 - Discard ordinary serializer exception chains so standard errors and tracebacks remain
   payload-free after authorization while process-control exceptions still propagate.
-- Reject HTTPX defaults and hooks that can change an exact bound destination.
-- Accept every Python awaitable serializer form while rejecting non-byte results.
+- Reject HTTPX defaults, hooks, active method values, and request-value subclasses that
+  can change an exact bound destination.
+- Accept every Python awaitable serializer form while requiring exact built-in bytes.
 - Make evaluator policy state read-only so rules, capabilities, and digests cannot drift.
-- Reject coercive security booleans, empty URL delimiters, and bracketed non-IPv6 hosts.
+- Reject coercive security booleans, active provider and destination subclasses, invalid
+  provider lookups, empty URL delimiters, and bracketed non-IPv6 hosts.
 - Version top-level intents, decisions, CLI argument errors, and structured errors.
 - Publish future releases from complete drafts and verify GitHub-native immutability and
   exact asset digests.

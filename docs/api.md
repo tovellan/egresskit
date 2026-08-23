@@ -29,18 +29,22 @@ receipt digest cannot drift apart.
 
 `GuardedTransport.dispatch(intent, payload, serializer)` returns `DispatchResult`. A
 normal denial raises `EgressRefused`; its `to_dict()` method returns a machine-readable,
-versioned, payload-free error. Ordinary serializer exceptions raise `SerializationFailed`
-without retaining the serializer exception as a cause or context. Its message,
-structured form, and standard formatted traceback omit runtime payload data. Process
-control exceptions such as cancellation and `SystemExit` propagate unchanged, as do
-exceptions from the raw transport.
+versioned, payload-free error. A serializer must return exact built-in `bytes`, not a
+subclass. Any other result fails closed with `SerializationFailed`. Ordinary serializer
+exceptions raise the same error without retaining the serializer exception as a cause
+or context. Its message, structured form, and standard formatted traceback omit runtime
+payload data. Process control exceptions such as cancellation and `SystemExit` propagate
+unchanged, as do exceptions from the raw transport.
 
 Python observability tools that capture caller source lines or frame locals can still
 capture application payloads. Configure tracing and crash reporting to redact those
 values. EgressKit sanitizes its own serialization failure, not the caller's process.
 
-Dry-run dispatch always returns after evaluation with `serialized=False`, `sent=False`,
-and `response=None`. Inspect `result.decision.allowed` for the hypothetical outcome.
+Unbound `GuardedTransport` dry runs return after evaluation with `serialized=False`,
+`sent=False`, and `response=None`. Bound transports also never serialize or send in a
+dry run, but an allowed dry run must first resolve an exact destination binding and can
+raise `DestinationRefused`; a denied dry run does not require a binding. Inspect
+`result.decision.allowed` for the hypothetical outcome.
 
 `GuardedAsyncTransport` provides the same contract for async transports and accepts a
 sync or async serializer.
@@ -51,7 +55,11 @@ HTTPS URL for each provider and use `BoundGuardedTransport` or
 the serializer runs. An unknown binding raises `DestinationRefused` with the reason
 `provider_unbound`. `DestinationBindings.require(provider, destination)` lets an adapter
 verify a caller-selected destination and raises the reason `destination_mismatch` when
-it differs.
+it differs. Both public lookup methods require an exact built-in provider string and
+validate its identifier and length before lookup; invalid input raises a fixed
+`ValueError` without reflecting the rejected value. Destination URLs, direct destination
+fields, and passed `Destination` objects must also use exact built-in or EgressKit types;
+active subclasses are rejected before their methods can run.
 
 The bound raw transport receives `send(destination: Destination, body: bytes)`. EgressKit
 has no HTTP client dependency. See [Destination binding](destinations.md) for the adapter

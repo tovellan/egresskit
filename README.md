@@ -82,8 +82,9 @@ assert result.sent
 ```
 
 For a refused request, `BoundGuardedTransport` raises before the serializer is called.
-It also refuses an allowed provider that has no exact destination binding. In dry-run
-mode it returns the decision without serializing or sending. See
+It also refuses an allowed provider that has no exact destination binding. Dry runs never
+serialize or send; an allowed dry run still requires a binding, while a denied dry run
+does not. See
 [Destination binding](docs/destinations.md) for DNS, redirect, and adapter guidance.
 Applications using HTTPX can use the optional sync or async transports described in
 [HTTPX integration](docs/httpx.md).

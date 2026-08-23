@@ -24,11 +24,14 @@ unless its declared metadata is explicitly allowed by a valid local policy.
 - Decision receipts and EgressKit errors cannot accept protected payload fields.
 - Ordinary serialization failures discard serializer exceptions, causal chains, and
   payload data from standard formatted tracebacks.
+- Serializer results must be exact built-in bytes, so active subclasses cannot alter a
+  body after the serialization boundary.
 - Strict schema validation rejects unknown policy fields and unsupported versions.
 - Security-sensitive boolean fields reject string and numeric coercion.
 - Unknown provider destination bindings fail before serialization.
 - Canonical HTTPS destination bindings reject credentials, queries, fragments, encoded
   paths, dot segments, and noncanonical hosts.
+- Destination values reject active subclasses that could change a validated URL later.
 - Declarative policy test suites require synthetic dry-run intents and reject payload
   fields.
 
