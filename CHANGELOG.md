@@ -3,6 +3,14 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.5.2 - 2026-08-24
+
+- Reject duplicate keys at every nesting level in JSON and YAML policies.
+- Reject repeated YAML merge keys and collisions introduced by mapping merges.
+- Apply the same strict parsing contract to declarative policy test suites.
+- Reject nonstandard JSON constants and oversized integers as structured load errors.
+- Return structured load errors for non-UTF-8 policy and test-suite documents.
+
 ## 0.5.1 - 2026-08-24
 
 - Add a safe legacy issue-template fallback so GitHub detects complete community health

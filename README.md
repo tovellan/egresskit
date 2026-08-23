@@ -11,22 +11,23 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.5.1 includes optional sync and async HTTPX destination transports alongside
-deterministic explanations, policy lint reports, exact provider destination bindings,
-and declarative policy test suites. Every serialized contract is versioned. Unknown
-versions, fields, providers, purposes, and unmatched requests fail closed.
+Version 0.5.2 rejects duplicate keys in policy and declarative test-suite documents. It
+also includes optional sync and async HTTPX destination transports, deterministic
+explanations, policy lint reports, exact provider destination bindings, and declarative
+policy test suites. Every serialized contract is versioned. Unknown versions, fields,
+providers, purposes, and unmatched requests fail closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.5.1"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.5.2"
 ```
 
 Install the optional HTTPX adapter with:
 
 ```console
-python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.1"
+python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.2"
 ```
 
 Python 3.10 through 3.14 are supported.
