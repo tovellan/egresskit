@@ -6,6 +6,9 @@ EgressKit separates policy decisions from payload handling.
 application metadata -> PolicyEvaluator -> Decision + payload-free receipt
                               |
                               v allow
+provider id -> exact DestinationBindings
+                              |
+                              v resolved
 application payload  -> serializer -> bound Transport -> external provider
 ```
 
@@ -13,14 +16,16 @@ application payload  -> serializer -> bound Transport -> external provider
 purpose, provider identifier, environment, execution mode, and dry-run state. It never
 receives the application payload.
 
-`GuardedTransport` owns the order of operations. It evaluates metadata, stops on denial,
-then invokes the caller's serializer, then invokes the transport. The async variant keeps
-the same order. Dry runs stop after evaluation.
+`BoundGuardedTransport` owns the full order of operations. It evaluates metadata, stops
+on denial, resolves the exact provider destination, invokes the caller's serializer,
+then invokes the destination transport. The async variant keeps the same order. Dry runs
+never serialize or send. Allowed dry runs still require a configured binding.
 
 The raw transport is intentionally a small protocol. Applications can adapt an HTTP,
-queue, SDK, or batch client behind it. That adapter must bind each policy provider
-identifier to its actual destination. A caller that accesses an unguarded network client
-directly is outside EgressKit's enforcement boundary.
+queue, SDK, or batch client behind it. A caller that accesses an unguarded network client
+directly is outside EgressKit's enforcement boundary. The earlier `GuardedTransport`
+remains available for compatibility where an application has its own independently
+reviewed destination enforcement.
 
 ## Determinism
 
@@ -34,6 +39,8 @@ rules, and the canonical policy digest are deterministic.
 - `models.py` defines immutable validated contracts.
 - `policy.py` loads, validates, hashes, and evaluates policies.
 - `transport.py` enforces pre-serialization sync and async dispatch.
+- `destination.py` validates exact destinations and enforces provider bindings.
+- `policy_tests.py` loads and runs versioned payload-free policy test suites.
 - `errors.py` exposes machine-readable safe errors.
 - `testing.py` provides explicitly synthetic intent and mock transports.
-- `cli.py` exposes validation, decision, schema, and fixture commands.
+- `cli.py` exposes validation, decision, test, schema, and fixture commands.

@@ -14,10 +14,16 @@ from pydantic import ValidationError
 from .errors import EgressKitError
 from .models import DataClassification, EgressIntent, ExecutionContext, ExecutionMode
 from .policy import PolicyEvaluator, load_policy, policy_json_schema
+from .policy_tests import (
+    load_policy_test_suite,
+    policy_test_suite_json_schema,
+    run_policy_tests,
+)
 from .testing import synthetic_intent
 
 EXIT_INVALID = 2
 EXIT_DENIED = 3
+EXIT_TEST_FAILURE = 4
 
 
 def _emit(value: Any, *, stream: TextIO | None = None) -> None:
@@ -29,7 +35,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="egresskit",
         description="Validate and evaluate fail-closed data egress policies.",
     )
-    parser.add_argument("--version", action="version", version="egresskit 0.1.0")
+    parser.add_argument("--version", action="version", version="egresskit 0.2.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate = subparsers.add_parser("validate", help="validate a versioned policy file")
@@ -46,7 +52,12 @@ def _parser() -> argparse.ArgumentParser:
     decide.add_argument("--mode", choices=[v.value for v in ExecutionMode], default="live")
     decide.add_argument("--dry-run", action="store_true")
 
-    subparsers.add_parser("schema", help="print the policy JSON Schema")
+    schema = subparsers.add_parser("schema", help="print a JSON Schema")
+    schema.add_argument("--kind", choices=("policy", "tests"), default="policy")
+
+    policy_test = subparsers.add_parser("test", help="run declarative policy test cases")
+    policy_test.add_argument("policy", type=Path)
+    policy_test.add_argument("suite", type=Path)
 
     fixture = subparsers.add_parser("fixture", help="print a synthetic test intent")
     fixture.add_argument("--provider", default="mock_processor")
@@ -70,8 +81,16 @@ def run(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if args.command == "schema":
-            _emit(policy_json_schema())
+            schema = (
+                policy_json_schema() if args.kind == "policy" else policy_test_suite_json_schema()
+            )
+            _emit(schema)
             return 0
+        if args.command == "test":
+            evaluator = PolicyEvaluator(load_policy(args.policy))
+            report = run_policy_tests(evaluator, load_policy_test_suite(args.suite))
+            _emit(report.model_dump(mode="json"))
+            return 0 if report.passed else EXIT_TEST_FAILURE
         if args.command == "fixture":
             fixture = synthetic_intent(
                 provider=args.provider,

@@ -38,3 +38,23 @@ class SerializationFailed(EgressKitError):
     def __init__(self, *, cause: Exception) -> None:
         super().__init__("serialization_failed", "payload serialization failed after authorization")
         self.__cause__ = cause
+
+
+class DestinationRefused(EgressKitError):
+    """A provider has no binding or an adapter attempted another destination."""
+
+    def __init__(self, *, provider: str, reason: str) -> None:
+        super().__init__("destination_refused", "destination binding refused the request")
+        self.provider = provider
+        self.reason = reason
+
+    def to_dict(self) -> dict[str, Any]:
+        value = super().to_dict()
+        value["error"].update({"provider": self.provider, "reason": self.reason})
+        return value
+
+
+class TestSuiteLoadError(EgressKitError):
+    def __init__(self, code: str, message: str, *, cause: Exception | None = None) -> None:
+        super().__init__(code, message)
+        self.__cause__ = cause
