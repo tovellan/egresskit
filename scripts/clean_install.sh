@@ -11,10 +11,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-package_version=$(uv run python -c \
-  'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+package_version=$(sed -n \
+  's/^version = "\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)"$/\1/p' \
+  pyproject.toml)
 case "$package_version" in
-  *[!0-9.]*|.*|*.) echo "package version is invalid" >&2; exit 1 ;;
+  ""|*[!0-9.]*) echo "package version is invalid" >&2; exit 1 ;;
 esac
 wheel="dist/egresskit-${package_version}-py3-none-any.whl"
 if [ ! -f "$wheel" ]; then
