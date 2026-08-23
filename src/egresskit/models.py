@@ -8,7 +8,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-Identifier = Annotated[str, Field(pattern=r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", max_length=128)]
+IDENTIFIER_PATTERN = r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+Identifier = Annotated[str, Field(pattern=IDENTIFIER_PATTERN, max_length=128)]
 
 
 class ImmutableModel(BaseModel):

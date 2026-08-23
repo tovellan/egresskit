@@ -1,0 +1,27 @@
+schema_version: "1"
+suite_id: synthetic_policy_contract
+cases:
+  - id: allow_internal_fixture
+    intent:
+      classification: internal
+      purpose: test_processing
+      provider: mock_processor
+      context:
+        environment: test
+        mode: synthetic
+        dry_run: true
+    expected_status: allow
+    expected_reason_codes:
+      - allowed_by_rule
+  - id: deny_unknown_provider
+    intent:
+      classification: internal
+      purpose: test_processing
+      provider: unknown_processor
+      context:
+        environment: test
+        mode: synthetic
+        dry_run: true
+    expected_status: deny
+    expected_reason_codes:
+      - unknown_provider

@@ -1,4 +1,4 @@
-"""Conservative checks for public repository hygiene."""
+"""Conservative checks for repository hygiene."""
 
 from __future__ import annotations
 

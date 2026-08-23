@@ -24,7 +24,9 @@ clean-install: build
 
 examples:
 	uv run python examples/guarded_call.py
+	uv run python examples/bound_call.py
 	uv run egresskit validate examples/synthetic-policy.yaml
+	uv run egresskit test examples/synthetic-policy.yaml examples/synthetic-tests.yaml
 
 audit-deps:
 	uv run pip-audit

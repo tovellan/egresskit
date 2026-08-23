@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .destination import Destination
 from .models import DataClassification, EgressIntent, ExecutionContext, ExecutionMode
 
 
@@ -44,4 +45,24 @@ class MockAsyncTransport:
 
     async def send(self, provider: str, body: bytes) -> bytes:
         self.calls.append((provider, body))
+        return self.response
+
+
+@dataclass
+class MockDestinationTransport:
+    response: bytes = b"synthetic-response"
+    calls: list[tuple[Destination, bytes]] = field(default_factory=list)
+
+    def send(self, destination: Destination, body: bytes) -> bytes:
+        self.calls.append((destination, body))
+        return self.response
+
+
+@dataclass
+class MockAsyncDestinationTransport:
+    response: bytes = b"synthetic-response"
+    calls: list[tuple[Destination, bytes]] = field(default_factory=list)
+
+    async def send(self, destination: Destination, body: bytes) -> bytes:
+        self.calls.append((destination, body))
         return self.response
