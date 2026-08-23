@@ -3,7 +3,7 @@
 Install the optional adapter dependency:
 
 ```console
-python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.1"
+python -m pip install "egresskit[httpx] @ git+https://github.com/tovellan/egresskit.git@v0.5.2"
 ```
 
 The adapter accepts a caller-owned HTTPX client. Configure authentication, TLS, proxies,

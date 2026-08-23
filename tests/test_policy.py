@@ -57,7 +57,9 @@ def test_loads_yaml_and_json(tmp_path: Path) -> None:
     [
         ("[]", ".json", "policy_root_invalid"),
         ("{", ".json", "policy_invalid"),
+        ('{"policy_id": NaN}', ".json", "policy_invalid"),
         ("!!python/object:bad", ".yaml", "policy_invalid"),
+        ("? [a, b]\n: value", ".yaml", "policy_invalid"),
     ],
 )
 def test_load_errors_are_safe(tmp_path: Path, content: str, suffix: str, code: str) -> None:
@@ -73,6 +75,70 @@ def test_load_errors_are_safe(tmp_path: Path, content: str, suffix: str, code: s
 def test_missing_policy_is_wrapped(tmp_path: Path) -> None:
     with pytest.raises(PolicyLoadError, match="could not be loaded"):
         load_policy(tmp_path / "missing.yaml")
+
+
+def test_non_utf8_policy_is_wrapped(tmp_path: Path) -> None:
+    path = tmp_path / "policy.yaml"
+    path.write_bytes(b"schema_version: \xff")
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
+    assert "\\xff" not in raised.value.message
+
+
+@pytest.mark.parametrize(
+    ("suffix", "content"),
+    [
+        (
+            ".json",
+            '{"schema_version":"1","policy_id":"first","policy_id":"second"}',
+        ),
+        (
+            ".json",
+            '{"schema_version":"1","policy_id":"test","nested":{"effect":"deny","effect":"allow"}}',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\npolicy_id: first\npolicy_id: second\n',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\npolicy_id: test\nnested:\n  effect: deny\n  effect: allow\n',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\nfirst: &first {a: 1}\nsecond: &second {b: 2}\n'
+            "nested:\n  <<: *first\n  <<: *second\n",
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\nnested:\n  <<:\n    <<: &first {a: 1}\n    <<: &second {b: 2}\n',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\ndefaults: &defaults {effect: deny}\n'
+            "nested:\n  <<: *defaults\n  effect: allow\n",
+        ),
+    ],
+)
+def test_policy_loader_rejects_duplicate_keys(tmp_path: Path, suffix: str, content: str) -> None:
+    path = tmp_path / f"policy{suffix}"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
+    assert "duplicate" in str(raised.value.__cause__).lower()
+    assert content not in raised.value.message
+
+
+def test_policy_loader_wraps_oversized_json_integer(tmp_path: Path) -> None:
+    content = '{"value":' + ("9" * 5_000) + "}"
+    path = tmp_path / "policy.json"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(PolicyLoadError) as raised:
+        load_policy(path)
+    assert raised.value.code == "policy_invalid"
+    assert content not in raised.value.message
 
 
 @pytest.mark.parametrize(

@@ -11,6 +11,10 @@ Policies are YAML or JSON objects with four required sections:
 Identifiers start with a lowercase letter and contain lowercase letters, digits, dots,
 underscores, or ASCII hyphens. Unknown fields are invalid.
 
+Duplicate object or mapping keys are invalid at every nesting level. This applies to
+both JSON and YAML, so a repeated capability or rule field cannot silently replace an
+earlier value.
+
 Provider capabilities are ceilings, not grants. A request within the capability ceiling
 still needs a matching allow rule. An explicit matching deny rule wins over any matching
 allow rule.

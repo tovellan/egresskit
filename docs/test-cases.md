@@ -23,8 +23,9 @@ cases:
 
 Every case must use synthetic execution mode and enable dry-run. Unknown fields are
 rejected, so a `payload` field is invalid at every model boundary. Case identifiers must
-be unique. Expected reason codes are optional; when present, comparison is exact after
-canonical ordering.
+be unique. Duplicate JSON object keys and YAML mapping keys are rejected at every
+nesting level. Expected reason codes are optional; when present, comparison is exact
+after canonical ordering.
 
 Run a suite with:
 

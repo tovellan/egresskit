@@ -9,6 +9,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import Field, ValidationError, field_validator, model_validator
 
+from ._documents import DocumentParseError, parse_document
 from .errors import TestSuiteLoadError
 from .models import (
     DecisionStatus,
@@ -84,13 +85,20 @@ def load_policy_test_suite(path: str | Path) -> PolicyTestSuite:
     suite_path = Path(path)
     try:
         raw = suite_path.read_text(encoding="utf-8")
-        value = json.loads(raw) if suite_path.suffix.lower() == ".json" else yaml.safe_load(raw)
+        value = parse_document(raw, is_json=suite_path.suffix.lower() == ".json")
         if not isinstance(value, dict):
             raise TestSuiteLoadError("test_suite_root_invalid", "test suite root must be an object")
         return PolicyTestSuite.model_validate(value)
     except TestSuiteLoadError:
         raise
-    except (OSError, json.JSONDecodeError, yaml.YAMLError, ValidationError) as exc:
+    except (
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+        DocumentParseError,
+        ValidationError,
+    ) as exc:
         raise TestSuiteLoadError(
             "test_suite_invalid", "policy test suite could not be loaded", cause=exc
         ) from exc

@@ -90,6 +90,67 @@ def test_missing_suite_is_wrapped(tmp_path: Path) -> None:
         load_policy_test_suite(tmp_path / "missing.yaml")
 
 
+def test_non_utf8_suite_is_wrapped(tmp_path: Path) -> None:
+    path = tmp_path / "suite.yaml"
+    path.write_bytes(b"schema_version: \xff")
+    with pytest.raises(SuiteLoadError) as raised:
+        load_policy_test_suite(path)
+    assert raised.value.code == "test_suite_invalid"
+    assert "\\xff" not in raised.value.message
+
+
+@pytest.mark.parametrize(
+    ("suffix", "content"),
+    [
+        (
+            ".json",
+            '{"schema_version":"1","suite_id":"first","suite_id":"second"}',
+        ),
+        (
+            ".json",
+            '{"schema_version":"1","suite_id":"test","case":{"expected_status":"deny",'
+            '"expected_status":"allow"}}',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\nsuite_id: first\nsuite_id: second\n',
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\nsuite_id: test\ncase:\n  expected_status: deny\n'
+            "  expected_status: allow\n",
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\nfirst: &first {a: 1}\nsecond: &second {b: 2}\n'
+            "case:\n  <<: *first\n  <<: *second\n",
+        ),
+        (
+            ".yaml",
+            'schema_version: "1"\ncase:\n  <<:\n    <<: &first {a: 1}\n    <<: &second {b: 2}\n',
+        ),
+    ],
+)
+def test_suite_loader_rejects_duplicate_keys(tmp_path: Path, suffix: str, content: str) -> None:
+    path = tmp_path / f"suite{suffix}"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(SuiteLoadError) as raised:
+        load_policy_test_suite(path)
+    assert raised.value.code == "test_suite_invalid"
+    assert "duplicate" in str(raised.value.__cause__).lower()
+    assert content not in raised.value.message
+
+
+def test_suite_loader_wraps_oversized_json_integer(tmp_path: Path) -> None:
+    content = '{"value":' + ("9" * 5_000) + "}"
+    path = tmp_path / "suite.json"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(SuiteLoadError) as raised:
+        load_policy_test_suite(path)
+    assert raised.value.code == "test_suite_invalid"
+    assert content not in raised.value.message
+
+
 @pytest.mark.parametrize(
     "mutation",
     [

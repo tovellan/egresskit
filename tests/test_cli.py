@@ -119,6 +119,30 @@ def test_invalid_policy_is_machine_readable(tmp_path: Path, capsys: object) -> N
     assert output["error"]["code"] == "policy_invalid"
 
 
+def test_non_utf8_policy_is_machine_readable(tmp_path: Path, capsys: object) -> None:
+    path = tmp_path / "non-utf8.yaml"
+    path.write_bytes(b"schema_version: \xff")
+    assert run(["validate", str(path)]) == EXIT_INVALID
+    output = json.loads(capsys.readouterr().err)  # type: ignore[attr-defined]
+    assert output == {
+        "error": {
+            "code": "policy_invalid",
+            "message": "policy could not be loaded",
+        }
+    }
+
+
+def test_oversized_json_integer_is_machine_readable(tmp_path: Path, capsys: object) -> None:
+    path = tmp_path / "oversized.json"
+    path.write_text('{"value":' + ("9" * 5_000) + "}", encoding="utf-8")
+    assert run(["validate", str(path)]) == EXIT_INVALID
+    output = json.loads(capsys.readouterr().err)  # type: ignore[attr-defined]
+    assert output["error"] == {
+        "code": "policy_invalid",
+        "message": "policy could not be loaded",
+    }
+
+
 def test_invalid_request_is_machine_readable(tmp_path: Path, capsys: object) -> None:
     path = write_policy(tmp_path)
     result = run(
@@ -175,4 +199,4 @@ def test_module_entrypoint() -> None:
         text=True,
     )
     assert completed.returncode == 0
-    assert completed.stdout.strip() == "egresskit 0.5.1"
+    assert completed.stdout.strip() == "egresskit 0.5.2"

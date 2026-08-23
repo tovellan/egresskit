@@ -13,6 +13,7 @@ from uuid import uuid4
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from ._documents import DocumentParseError, parse_document
 from .errors import PolicyLoadError
 from .models import (
     Decision,
@@ -33,13 +34,20 @@ def load_policy(path: str | Path) -> Policy:
     policy_path = Path(path)
     try:
         raw = policy_path.read_text(encoding="utf-8")
-        value = json.loads(raw) if policy_path.suffix.lower() == ".json" else yaml.safe_load(raw)
+        value = parse_document(raw, is_json=policy_path.suffix.lower() == ".json")
         if not isinstance(value, dict):
             raise PolicyLoadError("policy_root_invalid", "policy root must be an object")
         return Policy.model_validate(value)
     except PolicyLoadError:
         raise
-    except (OSError, json.JSONDecodeError, yaml.YAMLError, ValidationError) as exc:
+    except (
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+        DocumentParseError,
+        ValidationError,
+    ) as exc:
         raise PolicyLoadError("policy_invalid", "policy could not be loaded", cause=exc) from exc
 
 
