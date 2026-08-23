@@ -35,10 +35,12 @@ The boundary has three controls:
    author and committer account separately and posts the required `identity` check on
    the exact head commit. Pull requests above 100 commits fail closed and must be split
    so the audit reads the complete commit range in one API response.
-2. An active update ruleset blocks user-driven changes to `main`. The checked
-   fast-forward workflow is the only configured integration bypass. It re-runs the
-   identity audit, relies on strict protected-branch checks, updates with `force: false`,
-   and re-reads both the final ref and raw identities before succeeding.
+2. An active update ruleset with no bypass seals `main` between changes. For an update,
+   an administrator opens a bounded window by disabling that exact rule, dispatches the
+   checked fast-forward workflow, and immediately reactivates it. The workflow refuses
+   a missing, altered, active, or bypassable rule. It re-runs the identity audit, relies
+   on strict protected-branch checks, updates with `force: false`, re-reads the final ref
+   and raw identities, and waits for the rule to be active again before succeeding.
 3. The local repository audit checks privacy syntax for every reachable commit after
    the v0.5.1 baseline. A hosted main-history workflow separately resolves GitHub
    accounts and permissions on every commit after that baseline. Both emit diagnostics
@@ -48,10 +50,11 @@ The boundary has three controls:
 Maintainer changes are committed once with the configured identity, tested on a pull
 request, and fast-forwarded to `main` only after every required check passes. This keeps
 the reviewed commit object intact instead of asking the hosting platform to synthesize
-a replacement commit. The built-in automation boundary trusts repository write actors
-and the workflows already present on `main`; a dedicated merger application would be
-required to defend against a malicious write actor and is outside the keyless project
-boundary.
+a replacement commit. GitHub does not allow its built-in Actions integration as a
+bypass actor for this repository's ruleset, so the bounded update window trusts the
+administrator and workflows already present on `main`. A dedicated merger application
+would remove that window and defend against a malicious write actor, but it is outside
+the keyless project boundary.
 
 Commit `102f8dab03d5f7e079525e25c54afd0670a0972e` was created by the hosting platform
 before these controls became active and is the audit's sole recorded exception. The

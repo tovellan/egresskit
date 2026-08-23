@@ -6,6 +6,7 @@ import argparse
 import os
 import re
 import sys
+import time
 from typing import Any
 
 from scripts.commit_identity_audit import (
@@ -17,6 +18,7 @@ from scripts.commit_identity_audit import (
 )
 
 DEFAULT_BRANCH = "main"
+MAIN_UPDATE_RULESET = "sealed-main-updates"
 
 
 def validate_pull_request(
@@ -91,6 +93,53 @@ def _identity_check_passed(repository: str, head_sha: str) -> bool:
         and (run.get("app") or {}).get("id") == ACTIONS_APP_ID
         for run in runs
     )
+
+
+def _main_update_ruleset_enforcement(repository: str) -> str:
+    values = _run_gh(["api", f"repos/{repository}/rulesets"])
+    if not isinstance(values, list):
+        raise RuntimeError("checked merge received invalid ruleset metadata")
+    matches = [
+        value
+        for value in values
+        if isinstance(value, dict)
+        and value.get("name") == MAIN_UPDATE_RULESET
+        and value.get("target") == "branch"
+    ]
+    if len(matches) != 1 or not isinstance(matches[0].get("id"), int):
+        raise RuntimeError("checked merge requires the sealed main update ruleset")
+    value = _run_gh(["api", f"repos/{repository}/rulesets/{matches[0]['id']}"])
+    try:
+        enforcement = value["enforcement"]
+        bypass_actors = value["bypass_actors"]
+        conditions = value["conditions"]["ref_name"]
+        rules = value["rules"]
+    except (KeyError, TypeError) as exc:
+        raise RuntimeError("checked merge received invalid ruleset metadata") from exc
+    if (
+        not isinstance(enforcement, str)
+        or enforcement not in {"active", "disabled"}
+        or bypass_actors != []
+        or conditions != {"exclude": [], "include": ["~DEFAULT_BRANCH"]}
+        or not isinstance(rules, list)
+        or [rule.get("type") for rule in rules if isinstance(rule, dict)] != ["update"]
+        or len(rules) != 1
+    ):
+        raise RuntimeError("checked merge requires the exact sealed main update ruleset")
+    return enforcement
+
+
+def _require_update_window(repository: str) -> None:
+    if _main_update_ruleset_enforcement(repository) != "disabled":
+        raise RuntimeError("checked merge requires an explicitly opened update window")
+
+
+def _wait_for_main_reseal(repository: str) -> None:
+    for _ in range(36):
+        if _main_update_ruleset_enforcement(repository) == "active":
+            return
+        time.sleep(5)
+    raise RuntimeError("checked merge advanced main but the update ruleset was not resealed")
 
 
 def _review_conversations_resolved(repository: str, number: int) -> bool:
@@ -180,9 +229,12 @@ def merge_pull_request(repository: str, number: int, expected_head: str) -> str:
     if number < 1 or re.fullmatch(r"[0-9a-f]{40}", expected_head) is None:
         raise RuntimeError("checked merge received an invalid dispatch target")
 
+    _require_update_window(repository)
     _preflight(repository, number, expected_head)
     # Close over every mutable PR, check, review-thread, and main-ref value again.
+    _require_update_window(repository)
     _preflight(repository, number, expected_head)
+    _require_update_window(repository)
 
     _run_gh(
         [
@@ -200,6 +252,7 @@ def merge_pull_request(repository: str, number: int, expected_head: str) -> str:
         raise RuntimeError("checked merge could not verify the final main commit")
     if audit_repository_commit(repository, expected_head):
         raise RuntimeError("checked merge could not verify final commit identities")
+    _wait_for_main_reseal(repository)
     return expected_head
 
 

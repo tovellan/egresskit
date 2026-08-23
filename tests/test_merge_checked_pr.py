@@ -92,6 +92,8 @@ def test_merge_rechecks_before_updating_exact_head(
         lambda repository, number, head: preflights.append((repository, number, head)),
     )
     monkeypatch.setattr(merge_checked_pr, "_main_sha", lambda _: expected)
+    monkeypatch.setattr(merge_checked_pr, "_require_update_window", lambda _: None)
+    monkeypatch.setattr(merge_checked_pr, "_wait_for_main_reseal", lambda _: None)
     monkeypatch.setattr(merge_checked_pr, "audit_repository_commit", lambda *_: ())
     monkeypatch.setattr(
         merge_checked_pr,
@@ -112,3 +114,43 @@ def test_merge_rejects_an_invalid_expected_head(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
     with pytest.raises(RuntimeError, match="invalid dispatch target"):
         merge_pull_request("example/repository", 1, "main")
+
+
+def test_update_window_requires_exact_disabled_ruleset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = iter(
+        (
+            [
+                {"id": 11, "name": "immutable-release-tags", "target": "tag"},
+                {"id": 22, "name": "sealed-main-updates", "target": "branch"},
+            ],
+            {
+                "enforcement": "disabled",
+                "bypass_actors": [],
+                "conditions": {"ref_name": {"exclude": [], "include": ["~DEFAULT_BRANCH"]}},
+                "rules": [{"type": "update"}],
+            },
+        )
+    )
+    monkeypatch.setattr(merge_checked_pr, "_run_gh", lambda _: next(responses))
+    merge_checked_pr._require_update_window("example/repository")
+
+
+def test_active_update_ruleset_keeps_window_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = iter(
+        (
+            [{"id": 22, "name": "sealed-main-updates", "target": "branch"}],
+            {
+                "enforcement": "active",
+                "bypass_actors": [],
+                "conditions": {"ref_name": {"exclude": [], "include": ["~DEFAULT_BRANCH"]}},
+                "rules": [{"type": "update"}],
+            },
+        )
+    )
+    monkeypatch.setattr(merge_checked_pr, "_run_gh", lambda _: next(responses))
+    with pytest.raises(RuntimeError, match="explicitly opened"):
+        merge_checked_pr._require_update_window("example/repository")
