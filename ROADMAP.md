@@ -1,6 +1,6 @@
 # Roadmap
 
-The committed v0.5.0 scope is complete. Exact provider destination bindings, optional
+The committed v0.5.1 scope is complete. Exact provider destination bindings, optional
 HTTPX transports, declarative policy test suites, policy lint reports, deterministic
 explanations, and legacy IPv4 ambiguity rejection are released with the core fail-closed
 policy gate. There is no unreleased feature commitment or known implementation item in
