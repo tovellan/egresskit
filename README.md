@@ -11,15 +11,16 @@ actual transport destinations they control.
 
 ## Status
 
-Version 0.2.0 adds exact provider destination bindings and versioned declarative policy
-test suites. The policy and policy test schemas are each versioned as `"1"`. Unknown
-versions, fields, providers, purposes, and unmatched requests fail closed.
+Version 0.2.1 adds exact provider destination bindings, versioned declarative policy
+test suites, and rejection of resolver-ambiguous legacy IPv4 host spellings. The policy
+and policy test schemas are each versioned as `"1"`. Unknown versions, fields,
+providers, purposes, and unmatched requests fail closed.
 
 The Python package is not published to a package index. Install from a release archive,
 a checked-out repository, or the public Git repository:
 
 ```console
-python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.2.0"
+python -m pip install "egresskit @ git+https://github.com/tovellan/egresskit.git@v0.2.1"
 ```
 
 Python 3.10 through 3.14 are supported.

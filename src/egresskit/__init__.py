@@ -81,4 +81,4 @@ __all__ = [
     "run_policy_tests",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"

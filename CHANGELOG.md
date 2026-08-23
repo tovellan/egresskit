@@ -3,6 +3,11 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.2.1 - 2026-08-24
+
+- Reject resolver-ambiguous legacy hexadecimal IPv4 destination spellings.
+- Preserve ordinary DNS names that contain hexadecimal-looking labels.
+
 ## 0.2.0 - 2026-08-24
 
 - Add canonical HTTPS destinations and immutable exact provider bindings.

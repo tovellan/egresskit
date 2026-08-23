@@ -35,7 +35,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="egresskit",
         description="Validate and evaluate fail-closed data egress policies.",
     )
-    parser.add_argument("--version", action="version", version="egresskit 0.2.0")
+    parser.add_argument("--version", action="version", version="egresskit 0.2.1")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate = subparsers.add_parser("validate", help="validate a versioned policy file")
