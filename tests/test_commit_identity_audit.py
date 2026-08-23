@@ -118,12 +118,12 @@ def test_only_exact_documented_service_identities_are_allowed() -> None:
     service = identity(
         author_name="github-actions[bot]",
         author_email="41898282+github-actions[bot]@users.noreply.github.com",
-        committer_name="GitHub",
-        committer_email="noreply@github.com",
+        committer_name="github-actions[bot]",
+        committer_email="41898282+github-actions[bot]@users.noreply.github.com",
         author_login="github-actions[bot]",
-        committer_login="web-flow",
+        committer_login="github-actions[bot]",
         author_id=41898282,
-        committer_id=19864447,
+        committer_id=41898282,
     )
     assert audit_github_associations((service,), lambda _: "none") == []
 
@@ -172,12 +172,12 @@ def test_pull_request_role_prevents_reserved_identity_spoofing() -> None:
 
 def test_maintainer_pull_request_requires_both_exact_commit_roles() -> None:
     mixed = identity(
-        committer_name="GitHub",
-        committer_email="noreply@github.com",
-        committer_login="web-flow",
-        committer_id=19864447,
+        committer_name="contributor-account",
+        committer_email="456+contributor-account@users.noreply.github.com",
+        committer_login="contributor-account",
+        committer_id=456,
     )
-    failures = audit_github_associations((mixed,), lambda _: "admin")
+    failures = audit_github_associations((mixed,), lambda _: "none")
     assert failures == [f"{'a' * 40}: maintainer identity must own both commit roles"]
     failures = audit_pull_request_roles(
         (mixed,),
@@ -197,6 +197,7 @@ def test_outside_pull_request_cannot_claim_a_service_or_maintainer_committer() -
     )
     for name, email in (
         ("Tovellan Maintainers", "tovellan@users.noreply.github.com"),
+        ("GitHub", "noreply@github.com"),
         (
             "github-actions[bot]",
             "41898282+github-actions[bot]@users.noreply.github.com",
@@ -216,6 +217,21 @@ def test_outside_pull_request_cannot_claim_a_service_or_maintainer_committer() -
             pull_author_permission="none",
         )
         assert failures == [f"{'a' * 40}: committer differs from the pull-request account"]
+
+
+def test_web_flow_association_does_not_prove_github_provenance() -> None:
+    commit = identity(
+        author_name="contributor-account",
+        author_email="456+contributor-account@users.noreply.github.com",
+        committer_name="GitHub",
+        committer_email="noreply@github.com",
+        author_login="contributor-account",
+        committer_login="web-flow",
+        author_id=456,
+        committer_id=19864447,
+    )
+    failures = audit_github_associations((commit,), lambda _: "none")
+    assert failures == [f"{'a' * 40}: committer does not match its linked GitHub account"]
 
 
 def test_outside_pull_request_must_match_its_linked_account() -> None:
@@ -265,7 +281,7 @@ def test_merge_commits_and_authorship_trailers_are_rejected() -> None:
     )
     assert failures == [
         f"{'a' * 40}: merge commits are not allowed",
-        f"{'a' * 40}: prohibited authorship trailer found",
+        f"{'a' * 40}: prohibited attribution trailer found",
     ]
 
 
@@ -274,9 +290,13 @@ def test_indented_authorship_trailer_is_rejected() -> None:
         "  Co-authored-by: hidden",
         "Signed-off-by : hidden",
         "Generated-by\t:\thidden",
+        "Authored-by: hidden",
+        "Co-developed-by: hidden",
+        "AI-generated-by: hidden",
+        "Generated-with: hidden",
     ):
         failures = audit_commits((identity(message=f"Change\n\n{trailer}"),))
-        assert failures == [f"{'a' * 40}: prohibited authorship trailer found"]
+        assert failures == [f"{'a' * 40}: prohibited attribution trailer found"]
 
 
 def pull_metadata(*, commits: int = 1, head: str = "a" * 40) -> dict[str, object]:

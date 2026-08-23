@@ -12,16 +12,17 @@ Tovellan Maintainers <tovellan@users.noreply.github.com>
 
 Outside contributors use their linked GitHub login as the commit name and that account's
 modern or legacy `@users.noreply.github.com` address. They must not use the maintainer
-identity. The exact documented service accounts are GitHub `web-flow`,
-and `github-actions[bot]`. Authorship, signoff, and generator trailers are not accepted.
-Merge commits are not accepted. Automated dependency proposals must be recreated as a
-conforming maintainer commit before they can enter `main`.
+identity. The exact documented service account is `github-actions[bot]`. GitHub `web-flow`
+association alone is not accepted as provenance because its raw identity fields can be
+copied into a locally created commit. Attribution, signoff, and generator trailers are
+not accepted, including synonymous `-by` and `-with` forms. Merge commits are not
+accepted. Automated dependency proposals must be recreated as a conforming maintainer
+commit before they can enter `main`.
 
 The service allowlist is exact:
 
 | Commit identity | Linked account | Account ID |
 |---|---|---:|
-| `GitHub <noreply@github.com>` | `web-flow` | `19864447` |
 | `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>` | `github-actions[bot]` | `41898282` |
 
 The boundary has three controls:

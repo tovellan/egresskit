@@ -26,7 +26,6 @@ MAINTAINER_IDENTITY = (
 )
 SERVICE_IDENTITIES = frozenset(
     {
-        ("GitHub", "noreply@github.com"),
         (
             "github-actions[bot]",
             "41898282+github-actions[bot]@users.noreply.github.com",
@@ -34,7 +33,6 @@ SERVICE_IDENTITIES = frozenset(
     }
 )
 SERVICE_ACCOUNTS = {
-    ("GitHub", "noreply@github.com"): ("web-flow", 19864447),
     (
         "github-actions[bot]",
         "41898282+github-actions[bot]@users.noreply.github.com",
@@ -42,7 +40,8 @@ SERVICE_ACCOUNTS = {
 }
 NOREPLY_EMAIL = re.compile(r"^[^@\s]+@users\.noreply\.github\.com$")
 PROHIBITED_TRAILER = re.compile(
-    r"^[ \t]*(?:co-authored-by|generated-by|signed-off-by)[ \t]*:",
+    r"^[ \t]*(?:[a-z0-9-]*(?:author|sign|generat)[a-z0-9-]*|"
+    r"[a-z0-9-]+-(?:by|with))[ \t]*:",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 WRITE_PERMISSIONS = frozenset({"admin", "maintain", "push", "write"})
@@ -126,7 +125,7 @@ def _syntax_violations(commit: CommitIdentity) -> list[tuple[str, str]]:
         violations.append(("merge_commit", f"{commit.sha}: merge commits are not allowed"))
     if PROHIBITED_TRAILER.search(commit.message):
         violations.append(
-            ("prohibited_trailer", f"{commit.sha}: prohibited authorship trailer found")
+            ("prohibited_trailer", f"{commit.sha}: prohibited attribution trailer found")
         )
     return violations
 
@@ -226,7 +225,7 @@ def audit_pull_request_roles(
         if pull_service is not None:
             if author != pull_service:
                 failures.append(f"{commit.sha}: service pull request has an invalid author")
-            if committer not in {pull_service, ("GitHub", "noreply@github.com")}:
+            if committer != pull_service:
                 failures.append(f"{commit.sha}: service pull request has an invalid committer")
             continue
 
@@ -235,8 +234,7 @@ def audit_pull_request_roles(
         elif (commit.author_login, commit.author_id) != (pull_author_login, pull_author_id):
             failures.append(f"{commit.sha}: author differs from the pull-request account")
 
-        allowed_committers = {("GitHub", "noreply@github.com")}
-        if committer not in allowed_committers and (
+        if (
             commit.committer_login,
             commit.committer_id,
         ) != (pull_author_login, pull_author_id):
