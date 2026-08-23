@@ -3,6 +3,13 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.5.0 - 2026-08-24
+
+- Add optional sync and async HTTPX destination transports.
+- Force redirect following off for every adapter request, including clients configured
+  to follow redirects by default.
+- Add network-free HTTPX mock integration and redirect tests.
+
 ## 0.4.0 - 2026-08-24
 
 - Add deterministic, versioned decision explanations without receipt UUIDs or timestamps.

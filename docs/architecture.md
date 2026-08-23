@@ -42,6 +42,7 @@ rules, and the canonical policy digest are deterministic.
 - `policy_lint.py` reports deterministic ineffective-policy diagnostics.
 - `transport.py` enforces pre-serialization sync and async dispatch.
 - `destination.py` validates exact destinations and enforces provider bindings.
+- `httpx_transport.py` provides optional sync and async HTTPX destination adapters.
 - `policy_tests.py` loads and runs versioned payload-free policy test suites.
 - `errors.py` exposes machine-readable safe errors.
 - `testing.py` provides explicitly synthetic intent and mock transports.
