@@ -2,23 +2,126 @@ name: Release build
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version without the v prefix
+        required: true
+        type: string
+      expected_head:
+        description: Exact 40-character main commit SHA
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: protected-release
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           version: "0.10.2"
           enable-cache: false
-      - run: uv build
+      - run: uv python install 3.12
+      - run: uv sync --all-groups --locked --python 3.12
+      - name: Validate exact release target
+        env:
+          EXPECTED_HEAD: ${{ inputs.expected_head }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release version must be a three-part numeric version" >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "release head must be a lowercase 40-character commit SHA" >&2
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$EXPECTED_HEAD" ]]; then
+            echo "release head does not match checked-out main" >&2
+            exit 1
+          fi
+          package_version="$(uv run --python 3.12 python -c \
+            'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [[ "$package_version" != "$VERSION" ]]; then
+            echo "release version does not match package metadata" >&2
+            exit 1
+          fi
+      - run: make ci
+      - name: Create release checksums
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          cd dist
+          sha256sum \
+            "egresskit-${VERSION}-py3-none-any.whl" \
+            "egresskit-${VERSION}.tar.gz" \
+            > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: egresskit-dist
-          path: dist/*
+          name: egresskit-dist-${{ inputs.version }}
+          path: |
+            dist/egresskit-${{ inputs.version }}-py3-none-any.whl
+            dist/egresskit-${{ inputs.version }}.tar.gz
+            dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
+      - name: Create protected annotated tag and release
+        env:
+          EXPECTED_HEAD: ${{ inputs.expected_head }}
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          tag="v${VERSION}"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          if [[ "$remote_main" != "$EXPECTED_HEAD" ]]; then
+            echo "main changed during release verification" >&2
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            if [[ "$(git cat-file -t "$tag")" != "tag" ]]; then
+              echo "existing release tag is not annotated" >&2
+              exit 1
+            fi
+            if [[ "$(git rev-list -n 1 "$tag")" != "$EXPECTED_HEAD" ]]; then
+              echo "existing release tag points to another commit" >&2
+              exit 1
+            fi
+            tagger="$(git for-each-ref \
+              --format='%(taggername)|%(taggeremail)' "refs/tags/$tag")"
+            if [[ "$tagger" != \
+              'Tovellan Maintainers|<tovellan@users.noreply.github.com>' ]]; then
+              echo "existing release tag has invalid tagger metadata" >&2
+              exit 1
+            fi
+          else
+            git -c user.name='Tovellan Maintainers' \
+              -c user.email='tovellan@users.noreply.github.com' \
+              tag -a "$tag" -m "EgressKit $tag" "$EXPECTED_HEAD"
+            git push origin "refs/tags/$tag"
+          fi
+          remote_release="$(git ls-remote origin "refs/tags/$tag^{}" | awk '{print $1}')"
+          if [[ "$remote_release" != "$EXPECTED_HEAD" ]]; then
+            echo "remote annotated tag does not peel to the expected commit" >&2
+            exit 1
+          fi
+          gh release create "$tag" \
+            "dist/egresskit-${VERSION}-py3-none-any.whl" \
+            "dist/egresskit-${VERSION}.tar.gz" \
+            dist/SHA256SUMS \
+            --verify-tag \
+            --title "$tag" \
+            --notes "Protected EgressKit $tag release. See CHANGELOG.md for release details."

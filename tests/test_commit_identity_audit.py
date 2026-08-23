@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 import scripts.commit_identity_audit as commit_identity_audit
@@ -44,7 +46,7 @@ def identity(
 
 
 def test_current_history_passes_forward_only_audit() -> None:
-    failures, count = audit_history()
+    failures, count = audit_history(os.environ.get("EGRESSKIT_IDENTITY_HEAD", "HEAD"))
     assert failures == []
     assert count >= 1
 
@@ -65,6 +67,47 @@ def test_linked_outside_contributor_keeps_private_identity() -> None:
         committer_id=456,
     )
     assert audit_github_associations((contributor,), lambda _: "none") == []
+
+
+def test_linked_identity_survives_a_username_change() -> None:
+    contributor = identity(
+        author_name="prior-account",
+        author_email="456+prior-account@users.noreply.github.com",
+        committer_name="prior-account",
+        committer_email="456+prior-account@users.noreply.github.com",
+        author_login="current-account",
+        committer_login="current-account",
+        author_id=456,
+        committer_id=456,
+    )
+    assert audit_github_associations((contributor,), lambda _: "none") == []
+    assert (
+        audit_pull_request_roles(
+            (contributor,),
+            pull_author_login="current-account",
+            pull_author_id=456,
+            pull_author_permission="none",
+        )
+        == []
+    )
+
+
+def test_legacy_noreply_identity_is_not_durable_enough() -> None:
+    commit = identity(
+        author_name="contributor-account",
+        author_email="contributor-account@users.noreply.github.com",
+        committer_name="contributor-account",
+        committer_email="456+contributor-account@users.noreply.github.com",
+        author_login="contributor-account",
+        committer_login="contributor-account",
+        author_id=456,
+        committer_id=456,
+    )
+    failures = audit_github_associations((commit,), lambda _: "none")
+    assert failures == [
+        f"{'a' * 40}: author email is not privacy-preserving",
+        f"{'a' * 40}: author does not match its linked GitHub account",
+    ]
 
 
 def test_write_linked_personal_noreply_must_use_maintainer_identity() -> None:

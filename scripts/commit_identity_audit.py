@@ -38,7 +38,11 @@ SERVICE_ACCOUNTS = {
         "41898282+github-actions[bot]@users.noreply.github.com",
     ): ("github-actions[bot]", 41898282),
 }
-NOREPLY_EMAIL = re.compile(r"^[^@\s]+@users\.noreply\.github\.com$")
+SERVICE_EMAILS = frozenset(email for _, email in SERVICE_IDENTITIES)
+MODERN_NOREPLY_EMAIL = re.compile(
+    r"^(?P<account_id>[0-9]+)\+(?P<login>[a-z0-9-]+)@users\.noreply\.github\.com$",
+    flags=re.IGNORECASE,
+)
 PROHIBITED_TRAILER = re.compile(
     r"^[ \t]*(?:[a-z0-9-]*(?:author|sign|generat)[a-z0-9-]*|"
     r"[a-z0-9-]+-(?:by|with))[ \t]*:",
@@ -76,7 +80,10 @@ class PullRequestAudit:
 
 
 def _is_private_email(email: str) -> bool:
-    return email == "noreply@github.com" or NOREPLY_EMAIL.fullmatch(email) is not None
+    return (
+        email in {"noreply@github.com", MAINTAINER_IDENTITY[1], *SERVICE_EMAILS}
+        or MODERN_NOREPLY_EMAIL.fullmatch(email) is not None
+    )
 
 
 def _is_maintainer(name: str, email: str) -> bool:
@@ -172,14 +179,11 @@ def audit_github_associations(
             if login is None or account_id is None:
                 failures.append(f"{prefix} is not associated with a GitHub account")
                 continue
-            modern_noreply = re.compile(
-                rf"^[0-9]+\+{re.escape(login)}@users\.noreply\.github\.com$",
-                flags=re.IGNORECASE,
-            )
-            legacy_noreply = f"{login}@users.noreply.github.com"
-            if name != login or (
-                email.casefold() != legacy_noreply.casefold()
-                and modern_noreply.fullmatch(email) is None
+            modern_noreply = MODERN_NOREPLY_EMAIL.fullmatch(email)
+            if (
+                modern_noreply is None
+                or name.casefold() != modern_noreply.group("login").casefold()
+                or account_id != int(modern_noreply.group("account_id"))
             ):
                 failures.append(f"{prefix} does not match its linked GitHub account")
             if permission_for(login) in WRITE_PERMISSIONS:
@@ -231,13 +235,10 @@ def audit_pull_request_roles(
 
         if author in SERVICE_IDENTITIES or author == MAINTAINER_IDENTITY:
             failures.append(f"{commit.sha}: outside pull request claims a reserved author identity")
-        elif (commit.author_login, commit.author_id) != (pull_author_login, pull_author_id):
+        elif commit.author_id != pull_author_id:
             failures.append(f"{commit.sha}: author differs from the pull-request account")
 
-        if (
-            commit.committer_login,
-            commit.committer_id,
-        ) != (pull_author_login, pull_author_id):
+        if commit.committer_id != pull_author_id:
             failures.append(f"{commit.sha}: committer differs from the pull-request account")
     return failures
 

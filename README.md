@@ -135,8 +135,8 @@ make ci
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
-[public commit identity boundary](docs/public-history.md), and
-[support policy](docs/support.md).
+[public commit identity boundary](docs/public-history.md),
+[protected releases](docs/releases.md), and [support policy](docs/support.md).
 
 ## License
 

@@ -10,9 +10,12 @@ Maintainer-authored commits use exactly:
 Tovellan Maintainers <tovellan@users.noreply.github.com>
 ```
 
-Outside contributors use their linked GitHub login as the commit name and that account's
-modern or legacy `@users.noreply.github.com` address. They must not use the maintainer
-identity. The exact documented service account is `github-actions[bot]`. GitHub `web-flow`
+Outside contributors use the login embedded in their linked modern
+`ID+LOGIN@users.noreply.github.com` address as the commit name. The stable numeric ID is
+matched to GitHub's account ID, so a later username change does not invalidate history.
+Legacy noreply addresses are not accepted because they lack that durable binding.
+Outside contributors must not use the maintainer identity. The exact documented service
+account is `github-actions[bot]`. GitHub `web-flow`
 association alone is not accepted as provenance because its raw identity fields can be
 copied into a locally created commit. Attribution, signoff, and generator trailers are
 not accepted, including synonymous `-by` and `-with` forms. Merge commits are not

@@ -9,6 +9,8 @@ compatibility is additionally governed by `schema_version`.
 - Require the exact organization identity for write-linked accounts while preserving
   linked, privacy-safe outside-contributor provenance.
 - Add a base-anchored trusted check and a guarded exact-head fast-forward workflow.
+- Protect every `v*` tag from updates or deletion and create future releases as
+  annotated tags through the checked release workflow.
 - Reject merge commits and authorship, signoff, or generator trailers after the baseline.
 - Record the sole pre-enforcement metadata exception without rewriting published history.
 
