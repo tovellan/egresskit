@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -9,6 +10,7 @@ from shutil import which
 
 import yaml
 from check_text import repository_files
+from commit_identity_audit import audit_history
 
 MAX_FILE_SIZE = 1_000_000
 FORBIDDEN_SUFFIXES = {".7z", ".avi", ".gz", ".mov", ".mp3", ".mp4", ".tar", ".wav", ".whl", ".zip"}
@@ -79,6 +81,13 @@ def main() -> int:
     )
     if "\N{EN DASH}" in history or "\N{EM DASH}" in history:
         failures.append("Git history: prohibited Unicode dash")
+    if has_history:
+        try:
+            identity_failures, _ = audit_history(os.environ.get("EGRESSKIT_IDENTITY_HEAD", "HEAD"))
+        except RuntimeError as exc:
+            failures.append(str(exc))
+        else:
+            failures.extend(identity_failures)
 
     if failures:
         print("\n".join(failures), file=sys.stderr)

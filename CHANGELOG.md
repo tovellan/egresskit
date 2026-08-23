@@ -3,6 +3,15 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.5.3 - 2026-08-24
+
+- Add a forward-only public commit identity audit anchored at the v0.5.1 baseline.
+- Require the exact organization identity for write-linked accounts while preserving
+  linked, privacy-safe outside-contributor provenance.
+- Add a base-anchored trusted check and a guarded exact-head fast-forward workflow.
+- Reject merge commits and authorship, signoff, or generator trailers after the baseline.
+- Record the sole pre-enforcement metadata exception without rewriting published history.
+
 ## 0.5.2 - 2026-08-24
 
 - Reject duplicate keys at every nesting level in JSON and YAML policies.

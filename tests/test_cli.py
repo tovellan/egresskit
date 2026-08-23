@@ -199,4 +199,4 @@ def test_module_entrypoint() -> None:
         text=True,
     )
     assert completed.returncode == 0
-    assert completed.stdout.strip() == "egresskit 0.5.2"
+    assert completed.stdout.strip() == "egresskit 0.5.3"

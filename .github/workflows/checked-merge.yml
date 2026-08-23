@@ -1,0 +1,41 @@
+name: Checked fast-forward
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number to fast-forward
+        required: true
+        type: number
+      expected_head:
+        description: Exact 40-character pull-request head SHA
+        required: true
+        type: string
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: checked-main-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: update exact checked head
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 0
+      - run: >-
+          python3 -m scripts.merge_checked_pr
+          "$PULL_REQUEST_NUMBER"
+          "$EXPECTED_HEAD"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ inputs.expected_head }}

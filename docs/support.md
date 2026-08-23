@@ -3,7 +3,7 @@
 Use GitHub Discussions for usage questions and GitHub Issues for reproducible defects.
 Use private vulnerability reporting for security concerns.
 
-Version 0.5.2 supports CPython 3.10 through 3.14. Continuous integration tests the lower
+Version 0.5.3 supports CPython 3.10 through 3.14. Continuous integration tests the lower
 and upper supported versions plus an intermediate version. Other Python implementations
 are not currently tested.
 

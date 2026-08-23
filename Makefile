@@ -31,7 +31,7 @@ examples:
 	uv run egresskit test examples/synthetic-policy.yaml examples/synthetic-tests.yaml
 
 audit-deps:
-	uv run pip-audit
+	./scripts/audit_dependencies.sh
 
 audit: lint audit-deps
 

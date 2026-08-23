@@ -13,4 +13,4 @@ binding, receipts, and policy compatibility. Write `none` only when none apply.
 - [ ] `make ci` passes.
 - [ ] Documentation is updated.
 - [ ] No credentials, personal data, real payloads, or proprietary policies are included.
-- [ ] Commits use the configured Git identity without extra authorship trailers.
+- [ ] Commit identities follow `docs/public-history.md` without authorship trailers.

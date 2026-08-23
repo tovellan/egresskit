@@ -101,4 +101,4 @@ __all__ = [
     "run_policy_tests",
 ]
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
