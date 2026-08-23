@@ -20,6 +20,7 @@ ResponseT = TypeVar("ResponseT", covariant=True)
 
 _IDENTIFIER = re.compile(IDENTIFIER_PATTERN)
 _DNS_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+_LEGACY_IPV4 = re.compile(r"^(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+)){0,3}$")
 _PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@/-]*$")
 
 
@@ -83,7 +84,9 @@ class Destination:
         try:
             return ipaddress.ip_address(host).compressed
         except ValueError:
-            if all(character in "0123456789." for character in host):
+            if all(character in "0123456789." for character in host) or _LEGACY_IPV4.fullmatch(
+                host
+            ):
                 raise ValueError("destination host is ambiguous") from None
             if len(host) > 253 or not all(_DNS_LABEL.fullmatch(label) for label in host.split(".")):
                 raise ValueError("destination host is invalid") from None
