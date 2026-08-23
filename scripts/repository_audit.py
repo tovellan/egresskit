@@ -7,6 +7,7 @@ import subprocess
 import sys
 from shutil import which
 
+import yaml
 from check_text import repository_files
 
 MAX_FILE_SIZE = 1_000_000
@@ -51,6 +52,10 @@ def main() -> int:
             f"{path}: credential-like marker found" for marker in SECRET_MARKERS if marker in text
         )
         if path.parts[:2] == (".github", "workflows"):
+            try:
+                yaml.safe_load(text)
+            except yaml.YAMLError:
+                failures.append(f"{path}: workflow YAML is invalid")
             for line_number, line in enumerate(text.splitlines(), start=1):
                 action = ACTION_REFERENCE.match(line)
                 if action and not PINNED_ACTION.fullmatch(action.group(1)):
