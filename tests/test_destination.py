@@ -291,6 +291,23 @@ def test_valid_unbound_provider_lookup_never_reflects_caller_value() -> None:
         assert marker not in rendered
 
 
+def test_destination_mismatch_suppresses_ambient_exception_display() -> None:
+    bindings = DestinationBindings({"processor_a": "https://processor.example.test/"})
+    marker = "caller-selected-destination-marker"
+    try:
+        raise RuntimeError(marker)
+    except RuntimeError:
+        with pytest.raises(DestinationRefused) as raised:
+            bindings.require("processor_a", "https://other.example.test/")
+    rendered = "".join(
+        traceback.format_exception(type(raised.value), raised.value, raised.value.__traceback__)
+    )
+    assert raised.value.reason == "destination_mismatch"
+    assert raised.value.provider == "processor_a"
+    assert raised.value.__suppress_context__
+    assert marker not in rendered
+
+
 def test_bound_transport_resolves_before_serialization(evaluator: object) -> None:
     raw = MockDestinationTransport()
     guarded = BoundGuardedTransport(

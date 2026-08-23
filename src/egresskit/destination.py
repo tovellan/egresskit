@@ -160,7 +160,9 @@ class DestinationBindings:
         expected = self.resolve(validated_provider)
         actual = _validate_destination_binding(destination)
         if actual != expected:
-            raise DestinationRefused(provider=validated_provider, reason="destination_mismatch")
+            raise DestinationRefused(
+                provider=validated_provider, reason="destination_mismatch"
+            ) from None
         return expected
 
 
