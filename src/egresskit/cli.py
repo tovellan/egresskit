@@ -12,9 +12,10 @@ from typing import Any, TextIO
 from pydantic import ValidationError
 
 from .errors import EgressKitError
+from .explanation import decision_explanation_json_schema, explain_decision
 from .models import DataClassification, EgressIntent, ExecutionContext, ExecutionMode
 from .policy import PolicyEvaluator, load_policy, policy_json_schema
-from .policy_lint import lint_policy
+from .policy_lint import lint_policy, policy_lint_report_json_schema
 from .policy_tests import (
     load_policy_test_suite,
     policy_test_suite_json_schema,
@@ -37,7 +38,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="egresskit",
         description="Validate and evaluate fail-closed data egress policies.",
     )
-    parser.add_argument("--version", action="version", version="egresskit 0.3.0")
+    parser.add_argument("--version", action="version", version="egresskit 0.4.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate = subparsers.add_parser("validate", help="validate a versioned policy file")
@@ -47,18 +48,19 @@ def _parser() -> argparse.ArgumentParser:
     lint.add_argument("policy", type=Path)
 
     decide = subparsers.add_parser("decide", help="evaluate payload-free egress metadata")
-    decide.add_argument("policy", type=Path)
-    decide.add_argument(
-        "--classification", required=True, choices=[v.value for v in DataClassification]
+    _add_intent_arguments(decide)
+
+    explain = subparsers.add_parser(
+        "explain", help="emit a deterministic payload-free decision explanation"
     )
-    decide.add_argument("--purpose", required=True)
-    decide.add_argument("--provider", required=True)
-    decide.add_argument("--environment", required=True)
-    decide.add_argument("--mode", choices=[v.value for v in ExecutionMode], default="live")
-    decide.add_argument("--dry-run", action="store_true")
+    _add_intent_arguments(explain)
 
     schema = subparsers.add_parser("schema", help="print a JSON Schema")
-    schema.add_argument("--kind", choices=("policy", "tests"), default="policy")
+    schema.add_argument(
+        "--kind",
+        choices=("policy", "tests", "lint", "explanation"),
+        default="policy",
+    )
 
     policy_test = subparsers.add_parser("test", help="run declarative policy test cases")
     policy_test.add_argument("policy", type=Path)
@@ -70,6 +72,18 @@ def _parser() -> argparse.ArgumentParser:
     fixture.add_argument("--environment", default="test")
     fixture.add_argument("--dry-run", action="store_true")
     return parser
+
+
+def _add_intent_arguments(command: argparse.ArgumentParser) -> None:
+    command.add_argument("policy", type=Path)
+    command.add_argument(
+        "--classification", required=True, choices=[v.value for v in DataClassification]
+    )
+    command.add_argument("--purpose", required=True)
+    command.add_argument("--provider", required=True)
+    command.add_argument("--environment", required=True)
+    command.add_argument("--mode", choices=[v.value for v in ExecutionMode], default="live")
+    command.add_argument("--dry-run", action="store_true")
 
 
 def run(argv: Sequence[str] | None = None) -> int:
@@ -90,9 +104,13 @@ def run(argv: Sequence[str] | None = None) -> int:
             _emit(lint_report.model_dump(mode="json"))
             return 0 if lint_report.passed else EXIT_LINT_FAILURE
         if args.command == "schema":
-            schema = (
-                policy_json_schema() if args.kind == "policy" else policy_test_suite_json_schema()
-            )
+            schemas = {
+                "policy": policy_json_schema,
+                "tests": policy_test_suite_json_schema,
+                "lint": policy_lint_report_json_schema,
+                "explanation": decision_explanation_json_schema,
+            }
+            schema = schemas[args.kind]()
             _emit(schema)
             return 0
         if args.command == "test":
@@ -109,7 +127,7 @@ def run(argv: Sequence[str] | None = None) -> int:
             )
             _emit(fixture.model_dump(mode="json"))
             return 0
-        if args.command == "decide":
+        if args.command in {"decide", "explain"}:
             intent = EgressIntent(
                 classification=DataClassification(args.classification),
                 purpose=args.purpose,
@@ -121,7 +139,8 @@ def run(argv: Sequence[str] | None = None) -> int:
                 ),
             )
             decision = PolicyEvaluator(load_policy(args.policy)).evaluate(intent)
-            _emit(decision.model_dump(mode="json"))
+            output = explain_decision(decision) if args.command == "explain" else decision
+            _emit(output.model_dump(mode="json"))
             return 0 if decision.allowed else EXIT_DENIED
     except EgressKitError as exc:
         _emit(exc.to_dict(), stream=sys.stderr)

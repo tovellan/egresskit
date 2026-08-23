@@ -27,6 +27,7 @@ examples:
 	uv run python examples/bound_call.py
 	uv run egresskit validate examples/synthetic-policy.yaml
 	uv run egresskit lint examples/synthetic-policy.yaml
+	uv run egresskit explain examples/synthetic-policy.yaml --classification internal --purpose test_processing --provider mock_processor --environment test --mode synthetic
 	uv run egresskit test examples/synthetic-policy.yaml examples/synthetic-tests.yaml
 
 audit-deps:

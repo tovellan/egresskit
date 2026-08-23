@@ -14,6 +14,11 @@ from .errors import (
     SerializationFailed,
     TestSuiteLoadError,
 )
+from .explanation import (
+    DecisionExplanation,
+    decision_explanation_json_schema,
+    explain_decision,
+)
 from .models import (
     DataClassification,
     Decision,
@@ -53,6 +58,7 @@ __all__ = [
     "BoundGuardedTransport",
     "DataClassification",
     "Decision",
+    "DecisionExplanation",
     "DecisionReceipt",
     "DecisionStatus",
     "Destination",
@@ -83,6 +89,8 @@ __all__ = [
     "RuleEffect",
     "SerializationFailed",
     "TestSuiteLoadError",
+    "decision_explanation_json_schema",
+    "explain_decision",
     "lint_policy",
     "load_policy",
     "load_policy_test_suite",
@@ -93,4 +101,4 @@ __all__ = [
     "run_policy_tests",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

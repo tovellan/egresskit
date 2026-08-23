@@ -3,6 +3,12 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.4.0 - 2026-08-24
+
+- Add deterministic, versioned decision explanations without receipt UUIDs or timestamps.
+- Add the `egresskit explain` command for stable allow and deny inspection in CI.
+- Expose JSON Schemas for lint reports and decision explanations through the CLI.
+
 ## 0.3.0 - 2026-08-24
 
 - Add deterministic, versioned, payload-free policy lint reports.

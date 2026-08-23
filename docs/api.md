@@ -75,8 +75,18 @@ Classification, purpose, environment, and provider identifiers can still reveal 
 metadata. Treat receipt storage as security telemetry and apply access controls and
 retention limits.
 
+## Deterministic explanations
+
+`explain_decision(decision)` returns a versioned `DecisionExplanation` that preserves
+the decision status, reasons, matched rules, policy digest, and declared intent metadata.
+It omits the receipt UUID and evaluation timestamp, so repeated evaluation of the same
+policy and intent produces the same explanation. The explanation remains payload-free.
+See [Decision explanations](decision-explanations.md).
+
 ## JSON Schema
 
 Call `policy_json_schema()` or run `egresskit schema --kind policy` for the policy schema.
-Call `policy_test_suite_json_schema()` or run `egresskit schema --kind tests` for the
-test-suite schema. Both generated schemas currently use schema version 1.
+The `tests`, `lint`, and `explanation` kinds expose the other serialized contracts.
+Their equivalent Python functions are `policy_test_suite_json_schema()`,
+`policy_lint_report_json_schema()`, and `decision_explanation_json_schema()`. All
+generated schemas currently use schema version 1.

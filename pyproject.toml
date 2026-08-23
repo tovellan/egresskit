@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "egresskit"
-version = "0.3.0"
+version = "0.4.0"
 description = "Fail-closed policy checks before Python applications serialize or send external payloads"
 readme = "README.md"
 requires-python = ">=3.10"
