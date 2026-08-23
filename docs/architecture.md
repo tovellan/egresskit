@@ -38,9 +38,10 @@ rules, and the canonical policy digest are deterministic.
 
 - `models.py` defines immutable validated contracts.
 - `policy.py` loads, validates, hashes, and evaluates policies.
+- `policy_lint.py` reports deterministic ineffective-policy diagnostics.
 - `transport.py` enforces pre-serialization sync and async dispatch.
 - `destination.py` validates exact destinations and enforces provider bindings.
 - `policy_tests.py` loads and runs versioned payload-free policy test suites.
 - `errors.py` exposes machine-readable safe errors.
 - `testing.py` provides explicitly synthetic intent and mock transports.
-- `cli.py` exposes validation, decision, test, schema, and fixture commands.
+- `cli.py` exposes validation, lint, decision, test, schema, and fixture commands.

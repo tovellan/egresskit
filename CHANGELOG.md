@@ -3,6 +3,14 @@
 This project follows Semantic Versioning for the Python package. Policy format
 compatibility is additionally governed by `schema_version`.
 
+## 0.3.0 - 2026-08-24
+
+- Add deterministic, versioned, payload-free policy lint reports.
+- Report no-rule policies, unused purposes and providers, and unreachable rules.
+- Add the `egresskit lint` command with a dedicated CI exit code.
+- Correct the synthetic example so every rule can intersect provider capabilities.
+- Align contribution guidance with the repository's sole-author commit policy.
+
 ## 0.2.1 - 2026-08-24
 
 - Reject resolver-ambiguous legacy hexadecimal IPv4 destination spellings.

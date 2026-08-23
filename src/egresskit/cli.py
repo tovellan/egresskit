@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from .errors import EgressKitError
 from .models import DataClassification, EgressIntent, ExecutionContext, ExecutionMode
 from .policy import PolicyEvaluator, load_policy, policy_json_schema
+from .policy_lint import lint_policy
 from .policy_tests import (
     load_policy_test_suite,
     policy_test_suite_json_schema,
@@ -24,6 +25,7 @@ from .testing import synthetic_intent
 EXIT_INVALID = 2
 EXIT_DENIED = 3
 EXIT_TEST_FAILURE = 4
+EXIT_LINT_FAILURE = 5
 
 
 def _emit(value: Any, *, stream: TextIO | None = None) -> None:
@@ -35,11 +37,14 @@ def _parser() -> argparse.ArgumentParser:
         prog="egresskit",
         description="Validate and evaluate fail-closed data egress policies.",
     )
-    parser.add_argument("--version", action="version", version="egresskit 0.2.1")
+    parser.add_argument("--version", action="version", version="egresskit 0.3.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate = subparsers.add_parser("validate", help="validate a versioned policy file")
     validate.add_argument("policy", type=Path)
+
+    lint = subparsers.add_parser("lint", help="report ineffective policy declarations")
+    lint.add_argument("policy", type=Path)
 
     decide = subparsers.add_parser("decide", help="evaluate payload-free egress metadata")
     decide.add_argument("policy", type=Path)
@@ -80,6 +85,10 @@ def run(argv: Sequence[str] | None = None) -> int:
                 }
             )
             return 0
+        if args.command == "lint":
+            lint_report = lint_policy(load_policy(args.policy))
+            _emit(lint_report.model_dump(mode="json"))
+            return 0 if lint_report.passed else EXIT_LINT_FAILURE
         if args.command == "schema":
             schema = (
                 policy_json_schema() if args.kind == "policy" else policy_test_suite_json_schema()
@@ -88,9 +97,9 @@ def run(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "test":
             evaluator = PolicyEvaluator(load_policy(args.policy))
-            report = run_policy_tests(evaluator, load_policy_test_suite(args.suite))
-            _emit(report.model_dump(mode="json"))
-            return 0 if report.passed else EXIT_TEST_FAILURE
+            test_report = run_policy_tests(evaluator, load_policy_test_suite(args.suite))
+            _emit(test_report.model_dump(mode="json"))
+            return 0 if test_report.passed else EXIT_TEST_FAILURE
         if args.command == "fixture":
             fixture = synthetic_intent(
                 provider=args.provider,

@@ -56,6 +56,15 @@ boundary.
 synthetic and dry-run, and neither suites nor reports have a payload field. See
 [Policy test suites](test-cases.md).
 
+## Policy lint
+
+`lint_policy(policy)` returns a deterministic `PolicyLintReport` with no runtime
+evaluation, receipts, timestamps, or payload fields. It reports valid declarations that
+cannot affect evaluation: policies with no rules, unreferenced purposes or providers,
+and rules that cannot intersect any named provider's capability ceiling. Use
+`policy_lint_report_json_schema()` for its versioned output schema. See
+[Policy lint](policy-lint.md).
+
 ## Decisions and receipts
 
 `Decision` contains status, reason codes, matched rule identifiers, and a receipt.

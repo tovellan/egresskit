@@ -27,4 +27,4 @@ in CI before deploying a policy.
 ## Versioning
 
 The schema version covers serialized policy structure and evaluation semantics. An
-incompatible schema uses a new value. Version 0.2.x rejects any unsupported value.
+incompatible schema uses a new value. Version 0.3.x rejects any unsupported value.

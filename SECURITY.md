@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest 0.2.x release receives security fixes. Older release lines are unsupported.
+The latest 0.3.x release receives security fixes. Older release lines are unsupported.
 
 ## Reporting
 

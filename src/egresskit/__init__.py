@@ -30,6 +30,13 @@ from .models import (
     RuleEffect,
 )
 from .policy import PolicyEvaluator, load_policy, policy_digest, policy_json_schema
+from .policy_lint import (
+    PolicyLintCode,
+    PolicyLintDiagnostic,
+    PolicyLintReport,
+    lint_policy,
+    policy_lint_report_json_schema,
+)
 from .policy_tests import (
     PolicyTestCase,
     PolicyTestCaseResult,
@@ -61,6 +68,9 @@ __all__ = [
     "GuardedTransport",
     "Policy",
     "PolicyEvaluator",
+    "PolicyLintCode",
+    "PolicyLintDiagnostic",
+    "PolicyLintReport",
     "PolicyLoadError",
     "PolicyRule",
     "PolicyTestCase",
@@ -73,12 +83,14 @@ __all__ = [
     "RuleEffect",
     "SerializationFailed",
     "TestSuiteLoadError",
+    "lint_policy",
     "load_policy",
     "load_policy_test_suite",
     "policy_digest",
     "policy_json_schema",
+    "policy_lint_report_json_schema",
     "policy_test_suite_json_schema",
     "run_policy_tests",
 ]
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
