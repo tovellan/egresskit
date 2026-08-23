@@ -36,6 +36,26 @@ and `response=None`. Inspect `result.decision.allowed` for the hypothetical outc
 `GuardedAsyncTransport` provides the same contract for async transports and accepts a
 sync or async serializer.
 
+For destination enforcement, construct `DestinationBindings` with an exact canonical
+HTTPS URL for each provider and use `BoundGuardedTransport` or
+`BoundGuardedAsyncTransport`. An allowed request resolves its provider binding before
+the serializer runs. An unknown binding raises `DestinationRefused` with the reason
+`provider_unbound`. `DestinationBindings.require(provider, destination)` lets an adapter
+verify a caller-selected destination and raises the reason `destination_mismatch` when
+it differs.
+
+The bound raw transport receives `send(destination: Destination, body: bytes)`. EgressKit
+has no HTTP client dependency. See [Destination binding](destinations.md) for the adapter
+boundary.
+
+## Declarative policy tests
+
+`load_policy_test_suite()` loads a strict versioned YAML or JSON suite.
+`run_policy_tests(evaluator, suite)` returns a deterministic `PolicyTestReport`.
+`policy_test_suite_json_schema()` exposes its JSON Schema. Test cases are required to be
+synthetic and dry-run, and neither suites nor reports have a payload field. See
+[Policy test suites](test-cases.md).
+
 ## Decisions and receipts
 
 `Decision` contains status, reason codes, matched rule identifiers, and a receipt.
@@ -48,5 +68,6 @@ retention limits.
 
 ## JSON Schema
 
-Call `policy_json_schema()` or run `egresskit schema`. The generated schema corresponds
-to policy schema version 1.
+Call `policy_json_schema()` or run `egresskit schema --kind policy` for the policy schema.
+Call `policy_test_suite_json_schema()` or run `egresskit schema --kind tests` for the
+test-suite schema. Both generated schemas currently use schema version 1.
