@@ -17,8 +17,8 @@ compatibility is additionally governed by `schema_version`.
 - Version top-level intents, decisions, CLI argument errors, and structured errors.
 - Publish future releases from complete drafts and verify GitHub-native immutability and
   exact asset digests.
-- Require a current independent approval in branch protection and the checked merge
-  preflight.
+- Add an exact-head checked merge path for a solo maintainer while retaining required
+  checks, resolved conversations, identity enforcement, and sealed main updates.
 
 ## 0.5.3 - 2026-08-24
 

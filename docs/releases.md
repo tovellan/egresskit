@@ -46,8 +46,11 @@ Tags through v0.5.2 were created as lightweight tags before this boundary. They 
 unchanged, and the immutability ruleset now prevents them from being moved or deleted.
 The project does not claim that those historical tags were retroactively annotated.
 
-Branch protection requires one approving review, dismisses approvals after new commits,
-and requires approval of the most recent reviewable push from someone other than its
-pusher. Administrators are subject to the same requirement, and no user, team, or app
-has a pull-request bypass allowance. The identity audit and required checks supplement
-this independent review; they do not replace it.
+Branch protection requires the pull-request path but requires zero approving reviews
+while the project has one maintainer. Administrators remain subject to the required
+checks, linear history, resolved-conversation, and no-force-push controls, and no user,
+team, or app has a pull-request bypass allowance. The checked merge still binds the
+current pull request, main commit, audited head, trusted identity check, and resolved
+review conversations immediately before the fast-forward. A future multi-maintainer
+project can restore an independent approval requirement without changing the release
+artifact boundary.

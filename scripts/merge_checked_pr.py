@@ -28,7 +28,6 @@ def validate_pull_request(
     expected_head: str,
     audit: PullRequestAudit,
     identity_check_passed: bool,
-    review_approved: bool,
     conversations_resolved: bool,
 ) -> list[str]:
     """Return safe reasons why an exact fast-forward must not proceed."""
@@ -59,8 +58,6 @@ def validate_pull_request(
         failures.append("pull-request commit identity audit failed")
     if not identity_check_passed:
         failures.append("required trusted identity check is not successful")
-    if not review_approved:
-        failures.append("required independent review is not approved")
     if not conversations_resolved:
         failures.append("pull request has unresolved review conversations")
     return failures
@@ -206,44 +203,6 @@ def _review_conversations_resolved(repository: str, number: int) -> bool:
         cursor = next_cursor
 
 
-def _review_approved(repository: str, number: int) -> bool:
-    try:
-        owner, name = repository.split("/", 1)
-    except ValueError as exc:
-        raise RuntimeError("checked merge received an invalid repository name") from exc
-    if not owner or not name or "/" in name:
-        raise RuntimeError("checked merge received an invalid repository name")
-
-    query = """
-    query($owner: String!, $name: String!, $number: Int!) {
-      repository(owner: $owner, name: $name) {
-        pullRequest(number: $number) { reviewDecision }
-      }
-    }
-    """
-    value = _run_gh(
-        [
-            "api",
-            "graphql",
-            "-f",
-            f"query={query}",
-            "-f",
-            f"owner={owner}",
-            "-f",
-            f"name={name}",
-            "-F",
-            f"number={number}",
-        ]
-    )
-    try:
-        decision = value["data"]["repository"]["pullRequest"]["reviewDecision"]
-    except (KeyError, TypeError) as exc:
-        raise RuntimeError("checked merge received invalid review metadata") from exc
-    if decision not in {None, "APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"}:
-        raise RuntimeError("checked merge received invalid review metadata")
-    return decision == "APPROVED"
-
-
 def _preflight(repository: str, number: int, expected_head: str) -> PullRequestAudit:
     pull = _run_gh(["api", f"repos/{repository}/pulls/{number}"])
     if not isinstance(pull, dict):
@@ -255,7 +214,6 @@ def _preflight(repository: str, number: int, expected_head: str) -> PullRequestA
         expected_head=expected_head,
         audit=audit,
         identity_check_passed=_identity_check_passed(repository, expected_head),
-        review_approved=_review_approved(repository, number),
         conversations_resolved=_review_conversations_resolved(repository, number),
     )
     if failures:
