@@ -3,12 +3,6 @@ name: Commit identity
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
-  workflow_dispatch:
-    inputs:
-      pull_request:
-        description: Pull request number to audit
-        required: true
-        type: number
 
 permissions:
   checks: write
@@ -29,4 +23,4 @@ jobs:
           --check-pull-request "$PULL_REQUEST_NUMBER"
         env:
           GH_TOKEN: ${{ github.token }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}

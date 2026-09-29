@@ -14,7 +14,7 @@ on:
 
 permissions:
   attestations: read
-  contents: write
+  contents: read
 
 concurrency:
   group: protected-release
@@ -22,7 +22,11 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && github.workflow_ref == 'tovellan/egresskit/.github/workflows/release-build.yml@refs/heads/main' }}
+    environment: release
+    permissions:
+      attestations: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
